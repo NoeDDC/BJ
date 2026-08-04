@@ -10,6 +10,36 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', setAppHeight);
 }
 
+/* ── TEMPORARY debug readout — remove once the bottom-nav gap is diagnosed ── */
+function updateDebugInfo() {
+  const el = document.getElementById('debugInfo');
+  if (!el) return;
+  const nav = document.querySelector('.bottom-nav');
+  const strip = document.getElementById('debugStrip');
+  const navRect = nav ? nav.getBoundingClientRect() : null;
+  const stripRect = strip ? strip.getBoundingClientRect() : null;
+  const lines = [
+    'innerHeight: ' + window.innerHeight,
+    'docEl.clientHeight: ' + document.documentElement.clientHeight,
+    'visualViewport.height: ' + (window.visualViewport ? window.visualViewport.height : 'n/a'),
+    'visualViewport.offsetTop: ' + (window.visualViewport ? window.visualViewport.offsetTop : 'n/a'),
+    'devicePixelRatio: ' + window.devicePixelRatio,
+    'standalone (matchMedia): ' + window.matchMedia('(display-mode: standalone)').matches,
+    'navigator.standalone (iOS): ' + (window.navigator.standalone === undefined ? 'n/a' : window.navigator.standalone),
+    'nav.bottom: ' + (navRect ? navRect.bottom.toFixed(1) : 'n/a'),
+    'nav.top: ' + (navRect ? navRect.top.toFixed(1) : 'n/a'),
+    'gap below nav (innerHeight - nav.bottom): ' + (navRect ? (window.innerHeight - navRect.bottom).toFixed(1) : 'n/a'),
+    'red strip .bottom: ' + (stripRect ? stripRect.bottom.toFixed(1) : 'n/a'),
+    'gap below red strip: ' + (stripRect ? (window.innerHeight - stripRect.bottom).toFixed(1) : 'n/a'),
+  ];
+  el.textContent = lines.join('\n');
+}
+updateDebugInfo();
+window.addEventListener('resize', updateDebugInfo);
+window.addEventListener('orientationchange', () => setTimeout(updateDebugInfo, 150));
+setTimeout(updateDebugInfo, 300);
+setTimeout(updateDebugInfo, 1000);
+
 /* ── state ── */
 const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, theme: 'theme-1', jours_sans_course: 0 };
 const MAX_H = 42;
