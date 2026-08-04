@@ -10,28 +10,6 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', setAppHeight);
 }
 
-/* ── TEMPORARY debug readout — remove once the bottom-nav gap is diagnosed ── */
-function updateDebugInfo() {
-  const el = document.getElementById('debugInfo');
-  if (!el) return;
-  const nav = document.querySelector('.bottom-nav');
-  const strip = document.getElementById('debugStrip');
-  const navRect = nav ? nav.getBoundingClientRect() : null;
-  const stripRect = strip ? strip.getBoundingClientRect() : null;
-  const lines = [
-    'STANDALONE=' + window.matchMedia('(display-mode: standalone)').matches + '  navStandalone=' + (window.navigator.standalone === undefined ? 'n/a' : window.navigator.standalone),
-    'innerH=' + window.innerHeight + '  vvH=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a') + '  bodyScrollH=' + document.body.scrollHeight,
-    'GAP under red strip = ' + (stripRect ? (window.innerHeight - stripRect.bottom).toFixed(0) : 'n/a') + 'px',
-    'GAP under nav = ' + (navRect ? (window.innerHeight - navRect.bottom).toFixed(0) : 'n/a') + 'px',
-  ];
-  el.textContent = lines.join('\n');
-}
-updateDebugInfo();
-window.addEventListener('resize', updateDebugInfo);
-window.addEventListener('orientationchange', () => setTimeout(updateDebugInfo, 150));
-setTimeout(updateDebugInfo, 300);
-setTimeout(updateDebugInfo, 1000);
-
 /* ── state ── */
 const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, theme: 'theme-1', jours_sans_course: 0 };
 const MAX_H = 42;

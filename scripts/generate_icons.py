@@ -3,8 +3,9 @@
 The mark is a single geometric monogram built from two parallel bars and
 one diagonal connector — exactly the letterform "skeleton" shared by both
 N and Z (two parallel strokes joined by a diagonal). At 0° it reads as N,
-at 90° it reads as Z; here it's rotated 45° — exactly halfway between the
-two — so it evokes both Zoé and Noé without fully committing to either.
+at 45° it reads as Z; here it's rotated 22.5° — exactly halfway between
+the two — so it evokes both Zoé and Noé without fully committing to
+either.
 
 For the larger icons, the monogram is followed by the literal letters
 "oé" — so it reads as the monogram acting as the first letter, completed
@@ -29,7 +30,7 @@ Z   = (139, 62, 47, 255)   # --z
 N   = (43, 95, 107, 255)   # --n
 GOLD = (201, 150, 46, 255) # --gold
 
-GROUP_ANGLE = 45  # halfway between 0° (reads as N) and 90° (reads as Z)
+GROUP_ANGLE = 22.5  # halfway between 0° (reads as N) and 45° (reads as Z)
 
 
 def rotate(points, angle_deg, cx, cy):
