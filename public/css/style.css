@@ -14,6 +14,7 @@
   --paper:   #F8F3EC;
   --rule:    #D8CFBF;
   --gold:    #C9962E;
+  --nav-height: 58px;
 }
 
 body.theme-2 {
@@ -196,6 +197,7 @@ h1 {
   position: absolute; inset: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   opacity: 0;
@@ -390,9 +392,17 @@ footer {
 .dot-good-z { background: var(--z); } .dot-bad-z { background: var(--z-light); border: 1px solid var(--z2); }
 .dot-good-n { background: var(--n); } .dot-bad-n { background: var(--n-light); border: 1px solid var(--n2); }
 
-/* ── bottom nav ── */
+/* ── bottom nav ──
+   Pinned via position:fixed directly to the viewport edge, independent of
+   .page's own height — vh/dvh (and even JS-measured viewport height) have
+   proven unreliable in installed iOS PWAs, but a plain fixed+bottom:0
+   element anchors to the true visual viewport regardless. */
 .bottom-nav {
-  flex: 0 0 auto;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
   display: flex;
   border-top: 1px solid var(--rule);
   background: var(--paper);
@@ -402,7 +412,7 @@ footer {
   flex: 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px;
-  min-height: 58px;
+  min-height: var(--nav-height);
   background: none; border: none;
   font-family: 'Cormorant Garamond', serif;
   color: var(--muted);
