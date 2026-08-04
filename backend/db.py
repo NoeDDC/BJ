@@ -33,8 +33,12 @@ def get_counters():
     return _impl.get_counters()
 
 
-def set_counters(data):
-    return _impl.set_counters(data)
+def adjust_counter(key, delta):
+    return _impl.adjust_counter(key, delta)
+
+
+def adjust_running(delta):
+    return _impl.adjust_running(delta)
 
 
 def get_meta(keys):

@@ -30,7 +30,16 @@ def init_db(database_url):
     cur.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     for k in KEYS:
         cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
-    for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
+    cur.execute("INSERT INTO meta (key, value) VALUES ('ui', 'a') ON CONFLICT (key) DO NOTHING")
+    # carries over whatever the old single `theme` key held, so switching to
+    # the two-interface system doesn't reset anyone's current color pick
+    cur.execute("SELECT value FROM meta WHERE key = 'theme'")
+    legacy_theme = cur.fetchone()
+    cur.execute(
+        "INSERT INTO meta (key, value) VALUES ('theme_a', %s) ON CONFLICT (key) DO NOTHING",
+        (legacy_theme[0] if legacy_theme else "theme-1",),
+    )
+    for k, v in (("theme_b", "scrap-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
         cur.execute("INSERT INTO meta (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING", (k, v))
     for p in VALID_PERSONS:
         cur.execute(
@@ -57,12 +66,26 @@ def get_counters():
     return {k: rows.get(k, 0) for k in KEYS}
 
 
-def set_counters(data):
+def adjust_counter(key, delta):
+    if key not in KEYS or not delta:
+        return
     con = _connect()
     cur = con.cursor()
-    for k in KEYS:
-        if k in data:
-            cur.execute("UPDATE counters SET val=%s WHERE id=%s", (int(data[k]), k))
+    cur.execute("UPDATE counters SET val = GREATEST(0, val + %s) WHERE id = %s", (int(delta), key))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+def adjust_running(delta):
+    if not delta:
+        return
+    con = _connect()
+    cur = con.cursor()
+    cur.execute(
+        "UPDATE meta SET value = GREATEST(0, value::int + %s)::text WHERE key = 'jours_sans_course'",
+        (int(delta),),
+    )
     con.commit()
     cur.close()
     con.close()
