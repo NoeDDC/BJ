@@ -11,8 +11,18 @@ if (window.visualViewport) {
 }
 
 /* ── state ── */
-const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, theme: 'theme-1', jours_sans_course: 0 };
+const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, ui: 'a', themeA: 'theme-1', themeB: 'scrap-1', jours_sans_course: 0 };
 const MAX_H = 42;
+
+/* ── Interface B: which person's card is the front card ── */
+let bPerson = 'z';
+function showCard(p) {
+  bPerson = p;
+  document.getElementById('bTabZ').classList.toggle('active', p === 'z');
+  document.getElementById('bTabN').classList.toggle('active', p === 'n');
+  document.getElementById('bCardZ').classList.toggle('active', p === 'z');
+  document.getElementById('bCardN').classList.toggle('active', p === 'n');
+}
 
 /* ── streak history (localStorage, per device) ── */
 function loadHist(p)   { try { return JSON.parse(localStorage.getItem('hist-'+p) || '[]'); } catch(e) { return []; } }
@@ -29,24 +39,36 @@ function computeStreak(h) {
 }
 
 function renderStreak(p) {
-  const s      = computeStreak(hist[p]);
-  const numEl  = document.getElementById('snum-' + p);
-  const lblEl  = document.getElementById('slbl-' + p);
-  const dotsEl = document.getElementById('dots-' + p);
+  const s = computeStreak(hist[p]);
 
-  if (s.count === 0) {
-    numEl.textContent = '—';
-    numEl.className   = 'streak-num empty';
-    lblEl.textContent = 'série de suite';
-    dotsEl.innerHTML  = '';
-    return;
-  }
+  ['snum-' + p, 'b-snum-' + p].forEach(id => renderStreakNum(id, s));
+  ['slbl-' + p, 'b-slbl-' + p].forEach(id => renderStreakLbl(id, s));
+  ['dots-' + p, 'b-dots-' + p].forEach(id => renderStreakDots(id, p, s));
+}
 
-  numEl.textContent = s.count;
-  numEl.className   = 'streak-num ' + (s.type === 'g' ? 'good' : 'bad');
+function renderStreakNum(id, s) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = s.count === 0 ? '—' : s.count;
+  el.className   = 'streak-num ' + (s.count === 0 ? 'empty' : (s.type === 'g' ? 'good' : 'bad'));
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+  el.addEventListener('animationend', () => el.classList.remove('pop'), { once: true });
+}
 
+function renderStreakLbl(id, s) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (s.count === 0) { el.textContent = 'série de suite'; return; }
   const plural = s.count > 1 ? 's' : '';
-  lblEl.textContent = (s.type === 'g' ? 'bonne' : 'mauvaise') + plural + ' de suite';
+  el.textContent = (s.type === 'g' ? 'bonne' : 'mauvaise') + plural + ' de suite';
+}
+
+function renderStreakDots(id, p, s) {
+  const dotsEl = document.getElementById(id);
+  if (!dotsEl) return;
+  if (s.count === 0) { dotsEl.innerHTML = ''; return; }
 
   const col    = s.type === 'g'
     ? (p === 'z' ? 'var(--z)' : 'var(--n)')
@@ -59,11 +81,6 @@ function renderStreak(p) {
     const op = (i === shown - 1 && s.count > shown) ? 'opacity:.35;' : '';
     return `<div class="streak-dot" style="background:${col};border:${border};${op}"></div>`;
   }).join('');
-
-  numEl.classList.remove('pop');
-  void numEl.offsetWidth;
-  numEl.classList.add('pop');
-  numEl.addEventListener('animationend', () => numEl.classList.remove('pop'), { once: true });
 }
 
 /* ── popup messages ── */
@@ -159,26 +176,44 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePopup();
 /* ── render ── */
 function barH(v, mx) { return mx ? Math.max(3, Math.round(v / mx * MAX_H)) : 3; }
 
+function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+function setHeight(id, px) { const el = document.getElementById(id); if (el) el.style.height = px + 'px'; }
+
 function render() {
   const vals = [state.z.g, state.z.b, state.n.g, state.n.b];
   const mx   = Math.max(...vals, 1);
 
   [['zg', state.z.g], ['zb', state.z.b], ['ng', state.n.g], ['nb', state.n.b]].forEach(([k, v]) => {
-    document.getElementById('count-' + k).textContent = v;
-    document.getElementById('bv-'    + k).textContent = v;
-    document.getElementById('bar-'   + k).style.height = barH(v, mx) + 'px';
+    setText('count-' + k, v);
+    setText('bv-' + k, v);
+    setHeight('bar-' + k, barH(v, mx));
+    setText('b-count-' + k, v);
+    setHeight('b-bar-' + k, barH(v, mx));
   });
 
   const tz = state.z.g + state.z.b;
   const tn = state.n.g + state.n.b;
-  document.getElementById('total-z').textContent = tz + ' journée' + (tz > 1 ? 's' : '');
-  document.getElementById('total-n').textContent = tn + ' journée' + (tn > 1 ? 's' : '');
-  document.getElementById('total').textContent   = vals.reduce((a, b) => a + b, 0);
-  document.getElementById('running-count').textContent = state.jours_sans_course;
-  document.body.className = state.theme || 'theme-1';
-  if (document.getElementById('themeSelect')) {
-    document.getElementById('themeSelect').value = state.theme;
-  }
+  const total = vals.reduce((a, b) => a + b, 0);
+  setText('total-z', tz + ' journée' + (tz > 1 ? 's' : ''));
+  setText('total-n', tn + ' journée' + (tn > 1 ? 's' : ''));
+  setText('total', total);
+  setText('b-total-z', tz + ' journée' + (tz > 1 ? 's' : ''));
+  setText('b-total-n', tn + ' journée' + (tn > 1 ? 's' : ''));
+  setText('b-total', total);
+  setText('running-count', state.jours_sans_course);
+  setText('b-running-count', state.jours_sans_course);
+
+  const uiClass    = state.ui === 'b' ? 'ui-b' : 'ui-a';
+  const variantCls = state.ui === 'b' ? state.themeB : state.themeA;
+  document.body.className = uiClass + ' ' + variantCls;
+
+  document.getElementById('uiBtnA').setAttribute('aria-pressed', String(state.ui !== 'b'));
+  document.getElementById('uiBtnB').setAttribute('aria-pressed', String(state.ui === 'b'));
+  document.getElementById('paletteA').hidden = state.ui === 'b';
+  document.getElementById('paletteB').hidden = state.ui !== 'b';
+  document.querySelectorAll('#paletteA .swatch').forEach(b => b.classList.toggle('active', b.dataset.variant === state.themeA));
+  document.querySelectorAll('#paletteB .swatch').forEach(b => b.classList.toggle('active', b.dataset.variant === state.themeB));
+
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
     const ink = getComputedStyle(document.body).getPropertyValue('--ink').trim();
@@ -189,11 +224,12 @@ function render() {
 /* ── change ── */
 function change(person, type, delta) {
   const prev = state[person][type];
-  state[person][type] = Math.max(0, prev + delta);
-  if (state[person][type] === prev && delta < 0) return;
+  const next = Math.max(0, prev + delta);
+  if (next === prev) return;
+  state[person][type] = next;
 
   render();
-  save();
+  saveAdjust(person + type, next - prev);
   showPopup(person, type, delta);
 
   if (delta > 0) {
@@ -205,17 +241,23 @@ function change(person, type, delta) {
   saveHist(person, hist[person]);
   renderStreak(person);
 
-  const barEl = document.getElementById('bar-' + person + type);
-  barEl.classList.remove('bump', 'dip');
-  void barEl.offsetWidth;
-  barEl.classList.add(delta > 0 ? 'bump' : 'dip');
-  barEl.addEventListener('animationend', () => barEl.classList.remove('bump', 'dip'), { once: true });
+  ['bar-' + person + type, 'b-bar-' + person + type].forEach(id => {
+    const barEl = document.getElementById(id);
+    if (!barEl) return;
+    barEl.classList.remove('bump', 'dip');
+    void barEl.offsetWidth;
+    barEl.classList.add(delta > 0 ? 'bump' : 'dip');
+    barEl.addEventListener('animationend', () => barEl.classList.remove('bump', 'dip'), { once: true });
+  });
 }
 
 function changeRunning(delta) {
-  state.jours_sans_course = Math.max(0, state.jours_sans_course + delta);
+  const prev = state.jours_sans_course;
+  const next = Math.max(0, prev + delta);
+  if (next === prev) return;
+  state.jours_sans_course = next;
   render();
-  save();
+  saveAdjust('jours_sans_course', next - prev);
 }
 
 /* ── server: journal ── */
@@ -227,7 +269,9 @@ async function load() {
     state.z.b = data.zb ?? 0;
     state.n.g = data.ng ?? 0;
     state.n.b = data.nb ?? 0;
-    state.theme = data.theme || 'theme-1';
+    state.ui     = data.ui === 'b' ? 'b' : 'a';
+    state.themeA = data.theme_a || 'theme-1';
+    state.themeB = data.theme_b || 'scrap-1';
     state.jours_sans_course = parseInt(data.jours_sans_course || "0") || 0;
     render();
     renderStreak('z');
@@ -238,35 +282,68 @@ async function load() {
   }
 }
 
-async function save() {
+// Sends only the delta for one counter — never the whole local snapshot —
+// so a stale tab can't clobber increments made from another device since
+// this one last loaded. The server applies it atomically and returns the
+// authoritative totals, which we adopt here to self-heal any staleness.
+async function saveAdjust(key, delta) {
   try {
-    const res = await fetch('/api/counters', {
+    const res = await fetch('/api/counters/adjust', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        zg: state.z.g,
-        zb: state.z.b,
-        ng: state.n.g,
-        nb: state.n.b,
-        theme: state.theme,
-        jours_sans_course: state.jours_sans_course
-      })
+      body: JSON.stringify({ key, delta })
     });
     if (!res.ok) throw new Error();
+    const data = await res.json();
+    state.z.g = data.zg ?? state.z.g;
+    state.z.b = data.zb ?? state.z.b;
+    state.n.g = data.ng ?? state.n.g;
+    state.n.b = data.nb ?? state.n.b;
+    state.jours_sans_course = parseInt(data.jours_sans_course || "0") || 0;
+    render();
     setStatus('');
   } catch(e) {
     setStatus('Erreur de sauvegarde');
   }
 }
 
-function changeTheme(theme) {
-  state.theme = theme;
-  render();
-  save();
-  setStatus('Style mis à jour');
+// Like saveAdjust: send only the one field that actually changed (never a
+// full snapshot), and adopt the server's response as truth, so a stale tab
+// switching the interface or theme can't stomp a pick made on another device.
+async function saveMeta(body, okMsg) {
+  try {
+    const res = await fetch('/api/counters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    state.ui     = data.ui === 'b' ? 'b' : 'a';
+    state.themeA = data.theme_a || state.themeA;
+    state.themeB = data.theme_b || state.themeB;
+    render();
+    setStatus(okMsg);
+  } catch(e) {
+    setStatus('Erreur de sauvegarde');
+  }
 }
 
-function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setInterface(ui) {
+  state.ui = ui === 'b' ? 'b' : 'a';
+  render();
+  saveMeta({ ui: state.ui }, 'Interface changée');
+}
+
+function setThemeVariant(scope, variant) {
+  if (scope === 'b') { state.themeB = variant; render(); saveMeta({ theme_b: variant }, 'Style mis à jour'); }
+  else               { state.themeA = variant; render(); saveMeta({ theme_a: variant }, 'Style mis à jour'); }
+}
+
+function setStatus(msg) {
+  setText('status', msg);
+  setText('b-status', msg);
+}
 
 /* ══════════════════ CALENDRIER ══════════════════ */
 

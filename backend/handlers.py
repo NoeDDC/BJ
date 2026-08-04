@@ -123,24 +123,38 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
 
         if path == "/api/counters":
+            # Meta only (currently: theme). Counter values, and running
+            # counters like jours_sans_course, are never set as absolute
+            # snapshots here — see /api/counters/adjust — because a client
+            # sending its whole locally-held state back can clobber
+            # increments another device made in the meantime.
             body = self._read_json_body()
-            old = db.get_counters()
-            db.set_counters(body)
+            body.pop("jours_sans_course", None)
             db.set_meta(body)
             result = db.get_counters()
             result.update(db.get_meta(db.META_KEYS))
             self._send_json(result)
 
-            for k in db.KEYS:
-                if k not in body:
-                    continue
-                try:
-                    new_val = int(body[k])
-                except (TypeError, ValueError):
-                    continue
-                if new_val > old.get(k, 0):
-                    person, ttype = k[0], k[1]
+        elif path == "/api/counters/adjust":
+            body = self._read_json_body()
+            key = body.get("key")
+            try:
+                delta = int(body.get("delta", 0))
+            except (TypeError, ValueError):
+                delta = 0
+
+            if key == "jours_sans_course":
+                db.adjust_running(delta)
+            elif key in db.KEYS and delta:
+                old = db.get_counters()
+                db.adjust_counter(key, delta)
+                if db.get_counters().get(key, 0) > old.get(key, 0):
+                    person, ttype = key[0], key[1]
                     threading.Thread(target=_notify_journee_added, args=(person, ttype), daemon=True).start()
+
+            result = db.get_counters()
+            result.update(db.get_meta(db.META_KEYS))
+            self._send_json(result)
 
         elif path == "/api/availability":
             body = self._read_json_body()
