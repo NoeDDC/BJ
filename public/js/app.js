@@ -19,18 +19,10 @@ function updateDebugInfo() {
   const navRect = nav ? nav.getBoundingClientRect() : null;
   const stripRect = strip ? strip.getBoundingClientRect() : null;
   const lines = [
-    'innerHeight: ' + window.innerHeight,
-    'docEl.clientHeight: ' + document.documentElement.clientHeight,
-    'visualViewport.height: ' + (window.visualViewport ? window.visualViewport.height : 'n/a'),
-    'visualViewport.offsetTop: ' + (window.visualViewport ? window.visualViewport.offsetTop : 'n/a'),
-    'devicePixelRatio: ' + window.devicePixelRatio,
-    'standalone (matchMedia): ' + window.matchMedia('(display-mode: standalone)').matches,
-    'navigator.standalone (iOS): ' + (window.navigator.standalone === undefined ? 'n/a' : window.navigator.standalone),
-    'nav.bottom: ' + (navRect ? navRect.bottom.toFixed(1) : 'n/a'),
-    'nav.top: ' + (navRect ? navRect.top.toFixed(1) : 'n/a'),
-    'gap below nav (innerHeight - nav.bottom): ' + (navRect ? (window.innerHeight - navRect.bottom).toFixed(1) : 'n/a'),
-    'red strip .bottom: ' + (stripRect ? stripRect.bottom.toFixed(1) : 'n/a'),
-    'gap below red strip: ' + (stripRect ? (window.innerHeight - stripRect.bottom).toFixed(1) : 'n/a'),
+    'STANDALONE=' + window.matchMedia('(display-mode: standalone)').matches + '  navStandalone=' + (window.navigator.standalone === undefined ? 'n/a' : window.navigator.standalone),
+    'innerH=' + window.innerHeight + '  vvH=' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a') + '  bodyScrollH=' + document.body.scrollHeight,
+    'GAP under red strip = ' + (stripRect ? (window.innerHeight - stripRect.bottom).toFixed(0) : 'n/a') + 'px',
+    'GAP under nav = ' + (navRect ? (window.innerHeight - navRect.bottom).toFixed(0) : 'n/a') + 'px',
   ];
   el.textContent = lines.join('\n');
 }
