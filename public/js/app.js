@@ -429,7 +429,7 @@ function renderCalendarGrid(pulseKey) {
 async function cycleAvailability(key) {
   if (!currentPerson) { showGate(); return; }
   const cur = availability[currentPerson][key];
-  const next = cur === 'free' ? 'busy' : (cur === 'busy' ? null : 'free');
+  const next = cur === 'free' ? null : 'free';
 
   if (next) availability[currentPerson][key] = next;
   else delete availability[currentPerson][key];
