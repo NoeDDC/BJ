@@ -63,3 +63,11 @@ def remove_subscription(endpoint):
 
 def get_subscriptions(person):
     return _impl.get_subscriptions(person)
+
+
+def get_ics_token(person):
+    return _impl.get_ics_token(person)
+
+
+def find_person_by_ics_token(token):
+    return _impl.find_person_by_ics_token(token)

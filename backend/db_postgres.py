@@ -4,6 +4,8 @@ Uses a fresh connection per call, same pattern as the SQLite backend. Neon's
 pooled connection string (the "-pooler" host) is meant for exactly this kind
 of short-lived-connection workload, so use that one for DATABASE_URL.
 """
+import secrets
+
 import psycopg2
 
 from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
@@ -25,10 +27,16 @@ def init_db(database_url):
         p256dh TEXT NOT NULL,
         auth TEXT NOT NULL
     )""")
+    cur.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     for k in KEYS:
         cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
     for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
         cur.execute("INSERT INTO meta (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING", (k, v))
+    for p in VALID_PERSONS:
+        cur.execute(
+            "INSERT INTO ics_tokens (person, token) VALUES (%s, %s) ON CONFLICT (person) DO NOTHING",
+            (p, secrets.token_urlsafe(24)),
+        )
     con.commit()
     cur.close()
     con.close()
@@ -159,3 +167,28 @@ def get_subscriptions(person):
         {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth}}
         for endpoint, p256dh, auth in rows
     ]
+
+
+# ── ics subscription tokens ────────────────────────────────────────────
+def get_ics_token(person):
+    if person not in VALID_PERSONS:
+        return None
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT token FROM ics_tokens WHERE person=%s", (person,))
+    row = cur.fetchone()
+    cur.close()
+    con.close()
+    return row[0] if row else None
+
+
+def find_person_by_ics_token(token):
+    if not token:
+        return None
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT person FROM ics_tokens WHERE token=%s", (token,))
+    row = cur.fetchone()
+    cur.close()
+    con.close()
+    return row[0] if row else None

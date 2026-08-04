@@ -6,7 +6,7 @@ import threading
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlsplit
 
-from . import db, push
+from . import db, ics, push
 
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
 
@@ -56,6 +56,13 @@ class Handler(BaseHTTPRequestHandler):
             return {}
         return json.loads(self.rfile.read(length))
 
+    def _base_url(self):
+        proto = self.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
+        host = self.headers.get("Host", "localhost")
+        if not proto:
+            proto = "http" if host.startswith("localhost") or host.startswith("127.0.0.1") else "https"
+        return f"{proto}://{host}"
+
     def _serve_static(self, rel_path):
         rel_path = rel_path.lstrip("/") or "index.html"
         candidate = os.path.normpath(os.path.join(PUBLIC_DIR, rel_path))
@@ -88,6 +95,24 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(db.get_availability())
         elif path == "/api/push/public-key":
             self._send_json({"publicKey": push.get_public_key()})
+        elif path == "/api/calendar-links":
+            base = self._base_url()
+            links = {p: f"{base}/calendar/{db.get_ics_token(p)}.ics" for p in db.VALID_PERSONS}
+            self._send_json(links)
+        elif path.startswith("/calendar/") and path.endswith(".ics"):
+            token = path[len("/calendar/"):-len(".ics")]
+            person = db.find_person_by_ics_token(token)
+            if not person:
+                self.send_error(404)
+                return
+            dates = [d for d, status in db.get_availability().get(person, {}).items() if status == "free"]
+            body = ics.build_ics(person, dates).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/calendar; charset=utf-8")
+            self.send_header("Content-Length", len(body))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
         elif path == "/":
             self._serve_static("index.html")
         else:

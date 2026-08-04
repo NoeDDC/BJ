@@ -1,5 +1,6 @@
 """SQLite implementation — used for local dev when DATABASE_URL isn't set."""
 import os
+import secrets
 import sqlite3
 
 from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
@@ -21,12 +22,15 @@ def init_db(db_path):
         p256dh TEXT NOT NULL,
         auth TEXT NOT NULL
     )""")
+    con.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     for k in KEYS:
         con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme", "theme-1"))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_zn", ""))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_nz", ""))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("jours_sans_course", "0"))
+    for p in VALID_PERSONS:
+        con.execute("INSERT OR IGNORE INTO ics_tokens (person, token) VALUES (?, ?)", (p, secrets.token_urlsafe(24)))
     con.commit()
     con.close()
 
@@ -131,6 +135,25 @@ def get_subscriptions(person):
         {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth}}
         for endpoint, p256dh, auth in rows
     ]
+
+
+# ── ics subscription tokens ────────────────────────────────────────────
+def get_ics_token(person):
+    if person not in VALID_PERSONS:
+        return None
+    con = _connect()
+    row = con.execute("SELECT token FROM ics_tokens WHERE person=?", (person,)).fetchone()
+    con.close()
+    return row[0] if row else None
+
+
+def find_person_by_ics_token(token):
+    if not token:
+        return None
+    con = _connect()
+    row = con.execute("SELECT person FROM ics_tokens WHERE token=?", (token,)).fetchone()
+    con.close()
+    return row[0] if row else None
 
 
 # ── raw export (used by the Neon migration script) ─────────────────────

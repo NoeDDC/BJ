@@ -277,6 +277,7 @@ function switchView(view) {
   if (view === 'calendar') {
     if (!currentPerson) { showGate(); }
     renderCalYou();
+    updateSubscribeButton();
     loadAvailability().then(renderCalendar);
     if (calPollTimer) clearInterval(calPollTimer);
     calPollTimer = setInterval(() => { loadAvailability().then(() => renderCalendarGrid()); }, 20000);
@@ -295,6 +296,7 @@ function choosePerson(p) {
   hideGate();
   renderCalYou();
   renderCalendarGrid();
+  updateSubscribeButton();
   if (pendingPushToggle) { pendingPushToggle = false; togglePush(); }
 }
 
@@ -390,6 +392,55 @@ async function cycleAvailability(key) {
   renderCalendarGrid(key);
 
   await saveAvailability(currentPerson, key, next);
+}
+
+/* ── lien d'abonnement (.ics) vers les dispos de l'autre ── */
+let calendarLinks = null;
+
+function otherPerson() {
+  return currentPerson === 'z' ? 'n' : (currentPerson === 'n' ? 'z' : null);
+}
+
+function updateSubscribeButton() {
+  const btn = document.getElementById('subscribeBtn');
+  if (!btn) return;
+  const other = otherPerson();
+  if (!other) {
+    btn.textContent = '📋 Copier le lien (choisis dabord qui tu es)';
+    return;
+  }
+  const name = other === 'z' ? 'Zoé' : 'Noé';
+  btn.textContent = `📋 Copier le lien des dispos de ${name}`;
+}
+
+async function loadCalendarLinks() {
+  if (calendarLinks) return calendarLinks;
+  try {
+    const res = await fetch('/api/calendar-links');
+    calendarLinks = await res.json();
+  } catch(e) { calendarLinks = null; }
+  return calendarLinks;
+}
+
+async function copySubscribeLink() {
+  const other = otherPerson();
+  if (!other) { showGate(); return; }
+
+  const links = await loadCalendarLinks();
+  const url = links && links[other];
+  if (!url) { setSubscribeHint('Erreur — réessaie dans un instant.'); return; }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    setSubscribeHint('Lien copié ! Colle-le dans Google Agenda (ou Apple Calendrier) → Ajouter un agenda → À partir de l\'URL.');
+  } catch(e) {
+    setSubscribeHint(url);
+  }
+}
+
+function setSubscribeHint(msg) {
+  const el = document.getElementById('subscribeHint');
+  if (el) el.textContent = msg;
 }
 
 /* ══════════════════ NOTIFICATIONS PUSH ══════════════════ */

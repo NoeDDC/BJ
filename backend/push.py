@@ -36,10 +36,10 @@ def init_vapid(db_path):
     os.makedirs(vapid_dir, exist_ok=True)
     _vapid_path = os.path.join(vapid_dir, "vapid_private_key.pem")
 
-    vapid = Vapid01()
     if os.path.exists(_vapid_path):
-        vapid.from_file(_vapid_path)
+        vapid = Vapid01.from_file(_vapid_path)  # classmethod: returns a new instance
     else:
+        vapid = Vapid01()
         vapid.generate_keys()
         vapid.save_key(_vapid_path)
 

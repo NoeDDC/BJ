@@ -26,8 +26,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
-  if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
-    return; // never cache API calls or cross-origin requests
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin ||
+      url.pathname.startsWith('/api/') || url.pathname.startsWith('/calendar/')) {
+    return; // never cache API calls, cross-origin requests, or the .ics feeds
   }
 
   event.respondWith(
