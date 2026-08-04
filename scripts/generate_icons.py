@@ -3,7 +3,7 @@
 The mark is a single geometric monogram built from two parallel bars and
 one diagonal connector — exactly the letterform "skeleton" shared by both
 N and Z (two parallel strokes joined by a diagonal). At 0° it reads as N,
-at 45° it reads as Z; here it's rotated 22.5° — exactly halfway between
+at 90° it reads as Z; here it's rotated 40° — roughly halfway between
 the two — so it evokes both Zoé and Noé without fully committing to
 either.
 
@@ -30,7 +30,7 @@ Z   = (139, 62, 47, 255)   # --z
 N   = (43, 95, 107, 255)   # --n
 GOLD = (201, 150, 46, 255) # --gold
 
-GROUP_ANGLE = 22.5  # halfway between 0° (reads as N) and 45° (reads as Z)
+GROUP_ANGLE = 40  # roughly halfway between 0° (reads as N) and 90° (reads as Z)
 
 
 def rotate(points, angle_deg, cx, cy):
@@ -51,16 +51,17 @@ def bar(cx, cy, thickness, length, cx0, cy0):
 
 
 def diagonal(x1, y1, x2, y2, thickness, cx0, cy0):
-    """A bar connecting two points (before group rotation), then rotated with the rest."""
+    """A bar connecting two points (x1,y1)->(x2,y2) exactly, before group rotation."""
     dx, dy = x2 - x1, y2 - y1
     length = math.hypot(dx, dy)
-    angle = math.degrees(math.atan2(dx, dy))  # 0 == vertical, matches bar()'s own frame
-    mx, my = (x1 + x2) / 2, (y1 + y2) / 2
-    hw, hh = thickness / 2, length / 2
-    local = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
-    a = math.radians(angle)
-    cos_a, sin_a = math.cos(a), math.sin(a)
-    corners = [(mx + px * cos_a - py * sin_a, my + px * sin_a + py * cos_a) for px, py in local]
+    ux, uy = dx / length, dy / length
+    px, py = -uy * thickness / 2, ux * thickness / 2  # perpendicular half-thickness offset
+    corners = [
+        (x1 + px, y1 + py),
+        (x1 - px, y1 - py),
+        (x2 - px, y2 - py),
+        (x2 + px, y2 + py),
+    ]
     return rotate(corners, GROUP_ANGLE, cx0, cy0)
 
 
