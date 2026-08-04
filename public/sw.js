@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bonne-journee-v1';
+const CACHE_NAME = 'bonne-journee-v2';
 const APP_SHELL = [
   '/',
   '/css/style.css',
@@ -31,19 +31,18 @@ self.addEventListener('fetch', event => {
     return; // never cache API calls, cross-origin requests, or the .ics feeds
   }
 
+  // Network-first: an actively-developed app should always show the latest
+  // deployed version when online. The cache only kicks in when offline.
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      const network = fetch(event.request)
-        .then(res => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then(res => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

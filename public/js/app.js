@@ -278,6 +278,7 @@ function switchView(view) {
     if (!currentPerson) { showGate(); }
     renderCalYou();
     updateSubscribeButton();
+    loadCalendarLinks();
     loadAvailability().then(renderCalendar);
     if (calPollTimer) clearInterval(calPollTimer);
     calPollTimer = setInterval(() => { loadAvailability().then(() => renderCalendarGrid()); }, 20000);
@@ -297,6 +298,7 @@ function choosePerson(p) {
   renderCalYou();
   renderCalendarGrid();
   updateSubscribeButton();
+  loadCalendarLinks();
   if (pendingPushToggle) { pendingPushToggle = false; togglePush(); }
 }
 
@@ -414,7 +416,6 @@ function updateSubscribeButton() {
 }
 
 async function loadCalendarLinks() {
-  if (calendarLinks) return calendarLinks;
   try {
     const res = await fetch('/api/calendar-links');
     calendarLinks = await res.json();
@@ -422,19 +423,47 @@ async function loadCalendarLinks() {
   return calendarLinks;
 }
 
-async function copySubscribeLink() {
+function legacyCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function copySubscribeLink() {
   const other = otherPerson();
   if (!other) { showGate(); return; }
 
-  const links = await loadCalendarLinks();
-  const url = links && links[other];
-  if (!url) { setSubscribeHint('Erreur — réessaie dans un instant.'); return; }
+  const url = calendarLinks && calendarLinks[other];
+  if (!url) {
+    // Links not preloaded yet (rare) — fetch then just show it as text,
+    // since by then we're past the user gesture and clipboard access
+    // may be refused by the browser.
+    loadCalendarLinks().then(links => {
+      const u = links && links[other];
+      setSubscribeHint(u || 'Erreur — réessaie dans un instant.');
+    });
+    return;
+  }
 
-  try {
-    await navigator.clipboard.writeText(url);
-    setSubscribeHint('Lien copié ! Colle-le dans Google Agenda (ou Apple Calendrier) → Ajouter un agenda → À partir de l\'URL.');
-  } catch(e) {
-    setSubscribeHint(url);
+  const onCopied = () => setSubscribeHint('Lien copié ! Colle-le dans Google Agenda (ou Apple Calendrier) → Ajouter un agenda → À partir de l\'URL.');
+  const onFailed = () => setSubscribeHint(url); // show it as selectable text so it can be copied by hand
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(onCopied).catch(() => {
+      if (legacyCopy(url)) onCopied(); else onFailed();
+    });
+  } else if (legacyCopy(url)) {
+    onCopied();
+  } else {
+    onFailed();
   }
 }
 
