@@ -30,16 +30,7 @@ def init_db(database_url):
     cur.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     for k in KEYS:
         cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
-    cur.execute("INSERT INTO meta (key, value) VALUES ('ui', 'a') ON CONFLICT (key) DO NOTHING")
-    # carries over whatever the old single `theme` key held, so switching to
-    # the two-interface system doesn't reset anyone's current color pick
-    cur.execute("SELECT value FROM meta WHERE key = 'theme'")
-    legacy_theme = cur.fetchone()
-    cur.execute(
-        "INSERT INTO meta (key, value) VALUES ('theme_a', %s) ON CONFLICT (key) DO NOTHING",
-        (legacy_theme[0] if legacy_theme else "theme-1",),
-    )
-    for k, v in (("theme_b", "scrap-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
+    for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
         cur.execute("INSERT INTO meta (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING", (k, v))
     for p in VALID_PERSONS:
         cur.execute(

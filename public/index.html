@@ -17,7 +17,7 @@
 
   <title>Bonne journée</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Cinzel:wght@400;500&family=Baloo+2:wght@500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Cinzel:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -29,28 +29,20 @@
       <div class="header-sub">— journal des journées —</div>
       <h1>Bonne journée</h1>
       <div class="header-rule"></div>
-      <div class="ui-switch" role="group" aria-label="Choisir l'interface">
-        <button type="button" class="ui-switch-btn" id="uiBtnA" onclick="setInterface('a')" aria-pressed="true">✎ Classique</button>
-        <button type="button" class="ui-switch-btn" id="uiBtnB" onclick="setInterface('b')" aria-pressed="false">✂ Carnet</button>
-      </div>
-      <div class="palette-row" id="paletteA">
-        <button type="button" class="swatch" style="--sw1:#8B3E2F;--sw2:#2B5F6B" data-variant="theme-1" onclick="setThemeVariant('a','theme-1')" aria-label="Chaleur du matin"></button>
-        <button type="button" class="swatch" style="--sw1:#0D3D66;--sw2:#0E4D5F" data-variant="theme-2" onclick="setThemeVariant('a','theme-2')" aria-label="Brise marine"></button>
-        <button type="button" class="swatch" style="--sw1:#F8B500;--sw2:#8C3F5C" data-variant="theme-3" onclick="setThemeVariant('a','theme-3')" aria-label="Crépuscule doux"></button>
-        <button type="button" class="swatch" style="--sw1:#D011A7;--sw2:#10E9C3" data-variant="theme-4" onclick="setThemeVariant('a','theme-4')" aria-label="Néon secret"></button>
-        <button type="button" class="swatch" style="--sw1:#365E42;--sw2:#385A5D" data-variant="theme-5" onclick="setThemeVariant('a','theme-5')" aria-label="Forêt calme"></button>
-        <button type="button" class="swatch" style="--sw1:#6D2C6D;--sw2:#30475E" data-variant="theme-6" onclick="setThemeVariant('a','theme-6')" aria-label="Lavande profonde"></button>
-        <button type="button" class="swatch" style="--sw1:#2E2E2E;--sw2:#484848" data-variant="theme-7" onclick="setThemeVariant('a','theme-7')" aria-label="Minimalisme papier"></button>
-        <button type="button" class="swatch" style="--sw1:#F05D5E;--sw2:#9D7CE1" data-variant="theme-8" onclick="setThemeVariant('a','theme-8')" aria-label="Pastel rétro"></button>
-        <button type="button" class="swatch" style="--sw1:#424242;--sw2:#6D6D6D" data-variant="theme-9" onclick="setThemeVariant('a','theme-9')" aria-label="Encres"></button>
-        <button type="button" class="swatch" style="--sw1:#462749;--sw2:#2F4562" data-variant="theme-10" onclick="setThemeVariant('a','theme-10')" aria-label="Velours"></button>
-      </div>
-      <div class="palette-row" id="paletteB" hidden>
-        <button type="button" class="swatch" style="--sw1:#FF6F91;--sw2:#2EC4B6" data-variant="scrap-1" onclick="setThemeVariant('b','scrap-1')" aria-label="Fraise et menthe"></button>
-        <button type="button" class="swatch" style="--sw1:#FF7A45;--sw2:#3DAA57" data-variant="scrap-2" onclick="setThemeVariant('b','scrap-2')" aria-label="Agrumes"></button>
-        <button type="button" class="swatch" style="--sw1:#FF4FA3;--sw2:#4F8EFF" data-variant="scrap-3" onclick="setThemeVariant('b','scrap-3')" aria-label="Bubblegum"></button>
-        <button type="button" class="swatch" style="--sw1:#FF5A5F;--sw2:#5B5FEF" data-variant="scrap-4" onclick="setThemeVariant('b','scrap-4')" aria-label="Soleil couchant"></button>
-        <button type="button" class="swatch" style="--sw1:#E0507A;--sw2:#7BB661" data-variant="scrap-5" onclick="setThemeVariant('b','scrap-5')" aria-label="Pistache et framboise"></button>
+      <div class="theme-row">
+        <label for="themeSelect" aria-label="Changer le style">🎨</label>
+        <select id="themeSelect" onchange="changeTheme(this.value)">
+          <option value="theme-1">Chaleur du matin</option>
+          <option value="theme-2">Brise marine</option>
+          <option value="theme-3">Crépuscule doux</option>
+          <option value="theme-4">Néon secret</option>
+          <option value="theme-5">Forêt calme</option>
+          <option value="theme-6">Lavande profonde</option>
+          <option value="theme-7">Minimalisme papier</option>
+          <option value="theme-8">Pastel rétro</option>
+          <option value="theme-9">Encres</option>
+          <option value="theme-10">Velours</option>
+        </select>
       </div>
       <div class="notif-row">
         <button id="pushToggle" class="notif-btn" onclick="togglePush()">🔕 Activer les notifications</button>
@@ -62,9 +54,6 @@
 
     <!-- ── JOURNAL ── -->
     <div id="view-journal" class="view active">
-
-    <!-- ═══ Interface A: Classique ═══ -->
-    <div id="journal-a" class="journal-variant">
 
       <main class="columns">
         <section class="col col-z">
@@ -166,123 +155,6 @@
           </div>
         </div>
       </div>
-
-    </div>
-    <!-- ═══ /Interface A ═══ -->
-
-    <!-- ═══ Interface B: Carnet ═══ -->
-    <div id="journal-b" class="journal-variant">
-
-      <div class="b-tabs">
-        <button type="button" class="b-tab b-tab-z active" id="bTabZ" onclick="showCard('z')">
-          <span class="b-tab-avatar">Z</span>Zoé
-        </button>
-        <button type="button" class="b-tab b-tab-n" id="bTabN" onclick="showCard('n')">
-          <span class="b-tab-avatar">N</span>Noé
-        </button>
-      </div>
-
-      <div class="b-stack">
-        <section class="b-card b-card-z active" id="bCardZ">
-          <span class="b-tape b-tape-1"></span><span class="b-tape b-tape-2"></span>
-          <div class="b-card-head">
-            <span class="b-sticker-avatar">Z</span>
-            <div class="b-card-name">Zoé</div>
-          </div>
-
-          <div class="b-stats">
-            <div class="b-stat b-stat-good">
-              <div class="b-stat-lbl">bonne ☀︎</div>
-              <div class="b-stat-num" id="b-count-zg">0</div>
-              <div class="b-stat-btns">
-                <button class="b-btn" onclick="change('z','g',-1)" aria-label="Moins bonne journée Z">−</button>
-                <button class="b-btn" onclick="change('z','g',+1)" aria-label="Plus bonne journée Z">+</button>
-              </div>
-            </div>
-            <div class="b-stat b-stat-bad">
-              <div class="b-stat-lbl">mauvaise ☁︎</div>
-              <div class="b-stat-num" id="b-count-zb">0</div>
-              <div class="b-stat-btns">
-                <button class="b-btn" onclick="change('z','b',-1)" aria-label="Moins mauvaise journée Z">−</button>
-                <button class="b-btn" onclick="change('z','b',+1)" aria-label="Plus mauvaise journée Z">+</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="b-chart">
-            <div class="b-bar-group"><div class="b-bar b-bar-good" id="b-bar-zg" style="height:3px"></div></div>
-            <div class="b-bar-group"><div class="b-bar b-bar-bad" id="b-bar-zb" style="height:3px"></div></div>
-          </div>
-
-          <div class="b-streak">
-            <div class="b-streak-dots" id="b-dots-z"></div>
-            <div class="b-streak-num empty" id="b-snum-z">—</div>
-            <div class="b-streak-lbl" id="b-slbl-z">série de suite</div>
-          </div>
-
-          <div class="b-total" id="b-total-z">—</div>
-        </section>
-
-        <section class="b-card b-card-n" id="bCardN">
-          <span class="b-tape b-tape-1"></span><span class="b-tape b-tape-2"></span>
-          <div class="b-card-head">
-            <span class="b-sticker-avatar">N</span>
-            <div class="b-card-name">Noé</div>
-          </div>
-
-          <div class="b-stats">
-            <div class="b-stat b-stat-good">
-              <div class="b-stat-lbl">bonne ☀︎</div>
-              <div class="b-stat-num" id="b-count-ng">0</div>
-              <div class="b-stat-btns">
-                <button class="b-btn" onclick="change('n','g',-1)" aria-label="Moins bonne journée N">−</button>
-                <button class="b-btn" onclick="change('n','g',+1)" aria-label="Plus bonne journée N">+</button>
-              </div>
-            </div>
-            <div class="b-stat b-stat-bad">
-              <div class="b-stat-lbl">mauvaise ☁︎</div>
-              <div class="b-stat-num" id="b-count-nb">0</div>
-              <div class="b-stat-btns">
-                <button class="b-btn" onclick="change('n','b',-1)" aria-label="Moins mauvaise journée N">−</button>
-                <button class="b-btn" onclick="change('n','b',+1)" aria-label="Plus mauvaise journée N">+</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="b-chart">
-            <div class="b-bar-group"><div class="b-bar b-bar-good" id="b-bar-ng" style="height:3px"></div></div>
-            <div class="b-bar-group"><div class="b-bar b-bar-bad" id="b-bar-nb" style="height:3px"></div></div>
-          </div>
-
-          <div class="b-streak">
-            <div class="b-streak-dots" id="b-dots-n"></div>
-            <div class="b-streak-num empty" id="b-snum-n">—</div>
-            <div class="b-streak-lbl" id="b-slbl-n">série de suite</div>
-          </div>
-
-          <div class="b-total" id="b-total-n">—</div>
-        </section>
-      </div>
-
-      <div class="b-footer-badge">
-        <span class="b-footer-total" id="b-total">0</span> journées au total
-        <span class="b-footer-status" id="b-status"></span>
-      </div>
-
-      <div class="b-running">
-        <div class="b-running-icon">👟</div>
-        <div class="b-running-txt">
-          <div class="b-running-lbl">Zoé n'a pas couru depuis</div>
-          <div class="b-running-val"><span id="b-running-count">0</span> jours</div>
-        </div>
-        <div class="b-running-btns">
-          <button class="b-mini-btn" onclick="changeRunning(-1)" aria-label="Moins de jours sans courir">−</button>
-          <button class="b-mini-btn" onclick="changeRunning(+1)" aria-label="Plus de jours sans courir">+</button>
-        </div>
-      </div>
-
-    </div>
-    <!-- ═══ /Interface B ═══ -->
 
     </div>
 
