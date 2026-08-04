@@ -1,3 +1,15 @@
+/* ── real viewport height (works around iOS PWA vh/dvh bugs) ── */
+function setAppHeight() {
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', h + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', setAppHeight);
+}
+
 /* ── state ── */
 const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, theme: 'theme-1', jours_sans_course: 0 };
 const MAX_H = 42;
