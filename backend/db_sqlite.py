@@ -25,12 +25,7 @@ def init_db(db_path):
     con.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     for k in KEYS:
         con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
-    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("ui", "a"))
-    # carries over whatever the old single `theme` key held, so switching to
-    # the two-interface system doesn't reset anyone's current color pick
-    legacy_theme = con.execute("SELECT value FROM meta WHERE key = 'theme'").fetchone()
-    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme_a", legacy_theme[0] if legacy_theme else "theme-1"))
-    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme_b", "scrap-1"))
+    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme", "theme-1"))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_zn", ""))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_nz", ""))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("jours_sans_course", "0"))
