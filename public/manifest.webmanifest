@@ -1,0 +1,17 @@
+{
+  "name": "Bonne journée",
+  "short_name": "Bonne journée",
+  "description": "Journal des journées de Zoé et Noé, avec calendrier des disponibilités",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1C1814",
+  "theme_color": "#1C1814",
+  "orientation": "portrait",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

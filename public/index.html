@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1C1814" />
+
+  <!-- PWA / installable app -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bonne journée" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+  <title>Bonne journée</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Cinzel:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<div id="appContent" class="page">
+
+  <header>
+    <div class="header-card">
+      <div class="header-sub">— journal des journées —</div>
+      <h1>Bonne journée</h1>
+      <div class="header-rule"></div>
+      <div class="theme-row">
+        <label for="themeSelect" aria-label="Changer le style">🎨</label>
+        <select id="themeSelect" onchange="changeTheme(this.value)">
+          <option value="theme-1">Chaleur du matin</option>
+          <option value="theme-2">Brise marine</option>
+          <option value="theme-3">Crépuscule doux</option>
+          <option value="theme-4">Néon secret</option>
+          <option value="theme-5">Forêt calme</option>
+          <option value="theme-6">Lavande profonde</option>
+          <option value="theme-7">Minimalisme papier</option>
+          <option value="theme-8">Pastel rétro</option>
+          <option value="theme-9">Encres</option>
+          <option value="theme-10">Velours</option>
+        </select>
+      </div>
+      <div class="notif-row">
+        <button id="pushToggle" class="notif-btn" onclick="togglePush()">🔕 Activer les notifications</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="views-container">
+
+    <!-- ── JOURNAL ── -->
+    <div id="view-journal" class="view active">
+
+      <main class="columns">
+        <section class="col col-z">
+          <div class="avatar av-z">Z</div>
+          <div class="types">
+            <div class="type">
+              <div class="type-lbl">bonne</div>
+              <div class="type-count" id="count-zg">0</div>
+              <div class="btn-row">
+                <button class="btn" onclick="change('z','g',-1)" aria-label="Moins bonne journée Z">−</button>
+                <button class="btn" onclick="change('z','g',+1)" aria-label="Plus bonne journée Z">+</button>
+              </div>
+            </div>
+            <div class="type-vsep"></div>
+            <div class="type">
+              <div class="type-lbl">mauvaise</div>
+              <div class="type-count" id="count-zb">0</div>
+              <div class="btn-row">
+                <button class="btn" onclick="change('z','b',-1)" aria-label="Moins mauvaise journée Z">−</button>
+                <button class="btn" onclick="change('z','b',+1)" aria-label="Plus mauvaise journée Z">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="streak" id="streak-z">
+            <div class="streak-dots" id="dots-z"></div>
+            <div class="streak-num empty" id="snum-z">—</div>
+            <div class="streak-lbl" id="slbl-z">série de suite</div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart">
+              <div class="bar-group"><div class="bar good" id="bar-zg" style="height:3px"></div></div>
+              <div class="bar-group"><div class="bar bad" id="bar-zb" style="height:3px"></div></div>
+            </div>
+            <div class="chart-labels">
+              <div class="chart-label"><div class="bar-val" id="bv-zg">0</div><div class="bar-lbl">☀︎</div></div>
+              <div class="chart-label"><div class="bar-val" id="bv-zb">0</div><div class="bar-lbl">☁︎</div></div>
+            </div>
+            <div class="col-total" id="total-z">—</div>
+          </div>
+        </section>
+
+        <div class="col-divider"></div>
+
+        <section class="col col-n">
+          <div class="avatar av-n">N</div>
+          <div class="types">
+            <div class="type">
+              <div class="type-lbl">bonne</div>
+              <div class="type-count" id="count-ng">0</div>
+              <div class="btn-row">
+                <button class="btn" onclick="change('n','g',-1)" aria-label="Moins bonne journée N">−</button>
+                <button class="btn" onclick="change('n','g',+1)" aria-label="Plus bonne journée N">+</button>
+              </div>
+            </div>
+            <div class="type-vsep"></div>
+            <div class="type">
+              <div class="type-lbl">mauvaise</div>
+              <div class="type-count" id="count-nb">0</div>
+              <div class="btn-row">
+                <button class="btn" onclick="change('n','b',-1)" aria-label="Moins mauvaise journée N">−</button>
+                <button class="btn" onclick="change('n','b',+1)" aria-label="Plus mauvaise journée N">+</button>
+              </div>
+            </div>
+          </div>
+          <div class="streak" id="streak-n">
+            <div class="streak-dots" id="dots-n"></div>
+            <div class="streak-num empty" id="snum-n">—</div>
+            <div class="streak-lbl" id="slbl-n">série de suite</div>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart">
+              <div class="bar-group"><div class="bar good" id="bar-ng" style="height:3px"></div></div>
+              <div class="bar-group"><div class="bar bad" id="bar-nb" style="height:3px"></div></div>
+            </div>
+            <div class="chart-labels">
+              <div class="chart-label"><div class="bar-val" id="bv-ng">0</div><div class="bar-lbl">☀︎</div></div>
+              <div class="chart-label"><div class="bar-val" id="bv-nb">0</div><div class="bar-lbl">☁︎</div></div>
+            </div>
+            <div class="col-total" id="total-n">—</div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span class="footer-lbl">Total</span>
+        <span class="footer-total" id="total"> </span>
+        <span class="footer-lbl">journées</span>
+        <span class="footer-status" id="status">Chargement…</span>
+      </footer>
+
+      <div class="running-counter-section">
+        <div class="running-counter">
+          <div class="running-counter-lbl">Zoé n'a pas couru depuis</div>
+          <div class="running-counter-val" id="running-count">0</div>
+          <div class="running-counter-unit">jours</div>
+          <div class="running-counter-btns">
+            <button class="running-counter-btn" onclick="changeRunning(-1)" aria-label="Moins de jours sans courir">−</button>
+            <button class="running-counter-btn" onclick="changeRunning(+1)" aria-label="Plus de jours sans courir">+</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CALENDRIER ── -->
+    <div id="view-calendar" class="view">
+      <div class="cal-topbar">
+        <button class="cal-nav-btn" onclick="calShiftMonth(-1)" aria-label="Mois précédent">‹</button>
+        <div class="cal-month-label" id="calMonthLabel">—</div>
+        <button class="cal-nav-btn" onclick="calShiftMonth(1)" aria-label="Mois suivant">›</button>
+      </div>
+
+      <div class="cal-legend">
+        <span class="legend-item"><span class="legend-dot z-free"></span>Zoé dispo</span>
+        <span class="legend-item"><span class="legend-dot n-free"></span>Noé dispo</span>
+        <span class="legend-item"><span class="legend-star">★</span>les deux</span>
+      </div>
+
+      <div class="cal-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+
+      <div class="cal-hint">Tape sur un jour pour indiquer ta disponibilité</div>
+      <div class="cal-you" id="calYou"></div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="journal" onclick="switchView('journal')">
+      <span class="nav-icon">📔</span>Journal
+    </button>
+    <button class="nav-btn" data-view="calendar" onclick="switchView('calendar')">
+      <span class="nav-icon">📅</span>Calendrier
+    </button>
+  </nav>
+
+</div>
+
+<!-- POPUP -->
+<div class="popup-overlay" id="overlay" onclick="closePopup(event)">
+  <div class="popup" id="popup">
+    <span class="popup-dot" id="popup-dot"></span>
+    <span class="popup-accent" id="popup-accent"></span>
+    <p class="popup-msg" id="popup-msg"></p>
+    <div class="popup-rule"></div>
+    <button class="popup-close" onclick="hidePopup()">Fermer</button>
+  </div>
+</div>
+
+<!-- PERSON GATE -->
+<div class="gate-overlay" id="personGate">
+  <div class="gate-card">
+    <div class="gate-eyebrow">— calendrier des disponibilités —</div>
+    <h2 class="gate-title">Qui es-tu ?</h2>
+    <div class="gate-buttons">
+      <button class="gate-btn gate-z" onclick="choosePerson('z')">
+        <span class="gate-avatar av-z">Z</span>
+        <span>Zoé</span>
+      </button>
+      <button class="gate-btn gate-n" onclick="choosePerson('n')">
+        <span class="gate-avatar av-n">N</span>
+        <span>Noé</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+
+</body>
+</html>

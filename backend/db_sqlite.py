@@ -1,0 +1,144 @@
+"""SQLite implementation — used for local dev when DATABASE_URL isn't set."""
+import os
+import sqlite3
+
+from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
+
+DB_PATH = None  # set once by init_db()
+
+
+def init_db(db_path):
+    global DB_PATH
+    DB_PATH = db_path
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    con = _connect()
+    con.execute("CREATE TABLE IF NOT EXISTS counters (id TEXT PRIMARY KEY, val INTEGER DEFAULT 0)")
+    con.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT DEFAULT '')")
+    con.execute("CREATE TABLE IF NOT EXISTS availability (person TEXT NOT NULL, date TEXT NOT NULL, status TEXT NOT NULL, PRIMARY KEY (person, date))")
+    con.execute("""CREATE TABLE IF NOT EXISTS push_subscriptions (
+        endpoint TEXT PRIMARY KEY,
+        person TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL
+    )""")
+    for k in KEYS:
+        con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
+    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme", "theme-1"))
+    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_zn", ""))
+    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("message_nz", ""))
+    con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("jours_sans_course", "0"))
+    con.commit()
+    con.close()
+
+
+def _connect():
+    con = sqlite3.connect(DB_PATH)
+    con.execute("PRAGMA busy_timeout = 3000")
+    return con
+
+
+# ── counters ──────────────────────────────────────────────────────────
+def get_counters():
+    con = _connect()
+    rows = dict(con.execute("SELECT id, val FROM counters").fetchall())
+    con.close()
+    return {k: rows.get(k, 0) for k in KEYS}
+
+
+def set_counters(data):
+    con = _connect()
+    for k in KEYS:
+        if k in data:
+            con.execute("UPDATE counters SET val=? WHERE id=?", (int(data[k]), k))
+    con.commit()
+    con.close()
+
+
+# ── meta ──────────────────────────────────────────────────────────────
+def get_meta(keys):
+    if not keys:
+        return {}
+    con = _connect()
+    rows = dict(con.execute(
+        "SELECT key, value FROM meta WHERE key IN ({})".format(",".join("?" * len(keys))),
+        keys
+    ).fetchall())
+    con.close()
+    return {k: rows.get(k, "") for k in keys}
+
+
+def set_meta(data):
+    con = _connect()
+    for k in META_KEYS:
+        if k in data:
+            value = data[k]
+            con.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (k, "" if value is None else str(value)))
+    con.commit()
+    con.close()
+
+
+# ── availability ──────────────────────────────────────────────────────
+def get_availability():
+    con = _connect()
+    rows = con.execute("SELECT person, date, status FROM availability").fetchall()
+    con.close()
+    result = {"z": {}, "n": {}}
+    for person, date, status in rows:
+        if person in result:
+            result[person][date] = status
+    return result
+
+
+def set_availability(person, date, status):
+    if person not in VALID_PERSONS or not DATE_RE.match(date or ""):
+        return
+    con = _connect()
+    if status in VALID_STATUSES:
+        con.execute("INSERT OR REPLACE INTO availability VALUES (?, ?, ?)", (person, date, status))
+    else:
+        con.execute("DELETE FROM availability WHERE person=? AND date=?", (person, date))
+    con.commit()
+    con.close()
+
+
+# ── push subscriptions ───────────────────────────────────────────────
+def add_subscription(person, endpoint, p256dh, auth):
+    if person not in VALID_PERSONS or not endpoint:
+        return
+    con = _connect()
+    con.execute(
+        "INSERT OR REPLACE INTO push_subscriptions VALUES (?, ?, ?, ?)",
+        (endpoint, person, p256dh, auth),
+    )
+    con.commit()
+    con.close()
+
+
+def remove_subscription(endpoint):
+    con = _connect()
+    con.execute("DELETE FROM push_subscriptions WHERE endpoint=?", (endpoint,))
+    con.commit()
+    con.close()
+
+
+def get_subscriptions(person):
+    con = _connect()
+    rows = con.execute(
+        "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE person=?", (person,)
+    ).fetchall()
+    con.close()
+    return [
+        {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth}}
+        for endpoint, p256dh, auth in rows
+    ]
+
+
+# ── raw export (used by the Neon migration script) ─────────────────────
+def dump_all():
+    con = _connect()
+    counters = con.execute("SELECT id, val FROM counters").fetchall()
+    meta = con.execute("SELECT key, value FROM meta").fetchall()
+    availability = con.execute("SELECT person, date, status FROM availability").fetchall()
+    subs = con.execute("SELECT endpoint, person, p256dh, auth FROM push_subscriptions").fetchall()
+    con.close()
+    return {"counters": counters, "meta": meta, "availability": availability, "push_subscriptions": subs}

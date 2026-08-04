@@ -1,0 +1,161 @@
+"""Postgres (Neon) implementation — used when DATABASE_URL is set.
+
+Uses a fresh connection per call, same pattern as the SQLite backend. Neon's
+pooled connection string (the "-pooler" host) is meant for exactly this kind
+of short-lived-connection workload, so use that one for DATABASE_URL.
+"""
+import psycopg2
+
+from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
+
+_dsn = None
+
+
+def init_db(database_url):
+    global _dsn
+    _dsn = database_url
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS counters (id TEXT PRIMARY KEY, val INTEGER NOT NULL DEFAULT 0)")
+    cur.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')")
+    cur.execute("CREATE TABLE IF NOT EXISTS availability (person TEXT NOT NULL, date TEXT NOT NULL, status TEXT NOT NULL, PRIMARY KEY (person, date))")
+    cur.execute("""CREATE TABLE IF NOT EXISTS push_subscriptions (
+        endpoint TEXT PRIMARY KEY,
+        person TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL
+    )""")
+    for k in KEYS:
+        cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
+    for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
+        cur.execute("INSERT INTO meta (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING", (k, v))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+def _connect():
+    return psycopg2.connect(_dsn)
+
+
+# ── counters ──────────────────────────────────────────────────────────
+def get_counters():
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT id, val FROM counters")
+    rows = dict(cur.fetchall())
+    cur.close()
+    con.close()
+    return {k: rows.get(k, 0) for k in KEYS}
+
+
+def set_counters(data):
+    con = _connect()
+    cur = con.cursor()
+    for k in KEYS:
+        if k in data:
+            cur.execute("UPDATE counters SET val=%s WHERE id=%s", (int(data[k]), k))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+# ── meta ──────────────────────────────────────────────────────────────
+def get_meta(keys):
+    if not keys:
+        return {}
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT key, value FROM meta WHERE key = ANY(%s)", (list(keys),))
+    rows = dict(cur.fetchall())
+    cur.close()
+    con.close()
+    return {k: rows.get(k, "") for k in keys}
+
+
+def set_meta(data):
+    con = _connect()
+    cur = con.cursor()
+    for k in META_KEYS:
+        if k in data:
+            value = data[k]
+            value = "" if value is None else str(value)
+            cur.execute(
+                "INSERT INTO meta (key, value) VALUES (%s, %s) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+                (k, value),
+            )
+    con.commit()
+    cur.close()
+    con.close()
+
+
+# ── availability ──────────────────────────────────────────────────────
+def get_availability():
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT person, date, status FROM availability")
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    result = {"z": {}, "n": {}}
+    for person, date, status in rows:
+        if person in result:
+            result[person][date] = status
+    return result
+
+
+def set_availability(person, date, status):
+    if person not in VALID_PERSONS or not DATE_RE.match(date or ""):
+        return
+    con = _connect()
+    cur = con.cursor()
+    if status in VALID_STATUSES:
+        cur.execute(
+            "INSERT INTO availability (person, date, status) VALUES (%s, %s, %s) "
+            "ON CONFLICT (person, date) DO UPDATE SET status = EXCLUDED.status",
+            (person, date, status),
+        )
+    else:
+        cur.execute("DELETE FROM availability WHERE person=%s AND date=%s", (person, date))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+# ── push subscriptions ───────────────────────────────────────────────
+def add_subscription(person, endpoint, p256dh, auth):
+    if person not in VALID_PERSONS or not endpoint:
+        return
+    con = _connect()
+    cur = con.cursor()
+    cur.execute(
+        "INSERT INTO push_subscriptions (endpoint, person, p256dh, auth) VALUES (%s, %s, %s, %s) "
+        "ON CONFLICT (endpoint) DO UPDATE SET person=EXCLUDED.person, p256dh=EXCLUDED.p256dh, auth=EXCLUDED.auth",
+        (endpoint, person, p256dh, auth),
+    )
+    con.commit()
+    cur.close()
+    con.close()
+
+
+def remove_subscription(endpoint):
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("DELETE FROM push_subscriptions WHERE endpoint=%s", (endpoint,))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+def get_subscriptions(person):
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE person=%s", (person,))
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    return [
+        {"endpoint": endpoint, "keys": {"p256dh": p256dh, "auth": auth}}
+        for endpoint, p256dh, auth in rows
+    ]
