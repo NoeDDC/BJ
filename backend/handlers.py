@@ -84,7 +84,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", ctype or "application/octet-stream")
         self.send_header("Content-Length", len(data))
-        no_cache = candidate.endswith((".html", "sw.js", ".webmanifest"))
+        no_cache = candidate.endswith((".html", "sw.js", ".webmanifest", ".css", ".js"))
         self.send_header("Cache-Control", "no-cache" if no_cache else "public, max-age=86400")
         self.end_headers()
         self.wfile.write(data)
