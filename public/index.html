@@ -27,19 +27,20 @@
   <header>
     <h1>Bonne journée</h1>
     <div class="header-bar">
-      <div class="palette-row" id="paletteRow">
-        <button type="button" class="swatch" style="--sw1:#8B3E2F;--sw2:#2B5F6B" data-variant="theme-1" onclick="changeTheme('theme-1')" aria-label="Chaleur du matin"></button>
-        <button type="button" class="swatch" style="--sw1:#0D3D66;--sw2:#0E4D5F" data-variant="theme-2" onclick="changeTheme('theme-2')" aria-label="Brise marine"></button>
-        <button type="button" class="swatch" style="--sw1:#F8B500;--sw2:#8C3F5C" data-variant="theme-3" onclick="changeTheme('theme-3')" aria-label="Crépuscule doux"></button>
-        <button type="button" class="swatch" style="--sw1:#D011A7;--sw2:#10E9C3" data-variant="theme-4" onclick="changeTheme('theme-4')" aria-label="Néon secret"></button>
-        <button type="button" class="swatch" style="--sw1:#365E42;--sw2:#385A5D" data-variant="theme-5" onclick="changeTheme('theme-5')" aria-label="Forêt calme"></button>
-        <button type="button" class="swatch" style="--sw1:#6D2C6D;--sw2:#30475E" data-variant="theme-6" onclick="changeTheme('theme-6')" aria-label="Lavande profonde"></button>
-        <button type="button" class="swatch" style="--sw1:#2E2E2E;--sw2:#484848" data-variant="theme-7" onclick="changeTheme('theme-7')" aria-label="Minimalisme papier"></button>
-        <button type="button" class="swatch" style="--sw1:#F05D5E;--sw2:#9D7CE1" data-variant="theme-8" onclick="changeTheme('theme-8')" aria-label="Pastel rétro"></button>
-        <button type="button" class="swatch" style="--sw1:#424242;--sw2:#6D6D6D" data-variant="theme-9" onclick="changeTheme('theme-9')" aria-label="Encres"></button>
-        <button type="button" class="swatch" style="--sw1:#462749;--sw2:#2F4562" data-variant="theme-10" onclick="changeTheme('theme-10')" aria-label="Velours"></button>
-      </div>
+      <button id="styleToggle" class="notif-icon-btn" onclick="toggleStylePicker()" aria-label="Changer de style" title="Changer de style">🎨</button>
       <button id="pushToggle" class="notif-icon-btn" onclick="togglePush()" aria-label="Activer les notifications" title="Activer les notifications">🔕</button>
+    </div>
+    <div class="palette-row" id="paletteRow">
+      <button type="button" class="swatch" style="--sw1:#8B3E2F;--sw2:#2B5F6B" data-variant="theme-1" onclick="changeTheme('theme-1')" aria-label="Chaleur du matin"></button>
+      <button type="button" class="swatch" style="--sw1:#0D3D66;--sw2:#0E4D5F" data-variant="theme-2" onclick="changeTheme('theme-2')" aria-label="Brise marine"></button>
+      <button type="button" class="swatch" style="--sw1:#F8B500;--sw2:#8C3F5C" data-variant="theme-3" onclick="changeTheme('theme-3')" aria-label="Crépuscule doux"></button>
+      <button type="button" class="swatch" style="--sw1:#D011A7;--sw2:#10E9C3" data-variant="theme-4" onclick="changeTheme('theme-4')" aria-label="Néon secret"></button>
+      <button type="button" class="swatch" style="--sw1:#365E42;--sw2:#385A5D" data-variant="theme-5" onclick="changeTheme('theme-5')" aria-label="Forêt calme"></button>
+      <button type="button" class="swatch" style="--sw1:#6D2C6D;--sw2:#30475E" data-variant="theme-6" onclick="changeTheme('theme-6')" aria-label="Lavande profonde"></button>
+      <button type="button" class="swatch" style="--sw1:#2E2E2E;--sw2:#484848" data-variant="theme-7" onclick="changeTheme('theme-7')" aria-label="Minimalisme papier"></button>
+      <button type="button" class="swatch" style="--sw1:#F05D5E;--sw2:#9D7CE1" data-variant="theme-8" onclick="changeTheme('theme-8')" aria-label="Pastel rétro"></button>
+      <button type="button" class="swatch" style="--sw1:#424242;--sw2:#6D6D6D" data-variant="theme-9" onclick="changeTheme('theme-9')" aria-label="Encres"></button>
+      <button type="button" class="swatch" style="--sw1:#462749;--sw2:#2F4562" data-variant="theme-10" onclick="changeTheme('theme-10')" aria-label="Velours"></button>
     </div>
   </header>
 

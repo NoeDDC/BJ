@@ -252,9 +252,14 @@ async function saveAdjust(key, delta) {
   }
 }
 
+function toggleStylePicker() {
+  document.getElementById('paletteRow').classList.toggle('show');
+}
+
 async function changeTheme(theme) {
   state.theme = theme;
   render();
+  document.getElementById('paletteRow').classList.remove('show');
   try {
     const res = await fetch('/api/counters', {
       method: 'POST',

@@ -105,9 +105,9 @@ header {
   padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0.75rem 0.5rem;
 }
 
-/* a small dark pill, not bare text on the page — some palettes (e.g. Néon
-   secret) use a near-black --ink on a near-black --paper, so text colored
-   with --ink directly on the page background would be unreadable there */
+/* Fixed dark/white pill — deliberately NOT theme-dependent (no var(--ink)),
+   so the title can never end up low-contrast no matter which of the 10
+   palettes is active. */
 h1 {
   display: inline-block;
   font-family: 'Cinzel', serif;
@@ -115,35 +115,41 @@ h1 {
   font-size: clamp(0.82rem, 4vw, 1rem);
   letter-spacing: 0.18em;
   color: #FFFFFF;
-  background: var(--ink);
+  background: #1C1814;
   padding: 0.3rem 1rem;
   border-radius: 999px;
   box-shadow: 0 6px 16px rgba(0,0,0,0.16);
-  text-shadow: 0 1px 6px rgba(0,0,0,0.35);
   margin-bottom: 0.4rem;
 }
 
 .header-bar {
-  width: 100%;
-  max-width: 340px;
+  width: fit-content;
   margin: 0 auto;
-  padding: 0.35rem 0.4rem 0.35rem 0.7rem;
+  padding: 0.35rem;
   background: var(--ink);
   border-radius: 999px;
   box-shadow: 0 8px 22px rgba(0,0,0,0.18);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
+/* style picker: tucked away behind the 🎨 button instead of always on
+   screen, since a permanently-visible row of 10 dots was too busy */
 .palette-row {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.28rem;
+  gap: 0.35rem;
+  width: fit-content;
+  max-width: 260px;
+  margin: 0.45rem auto 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18);
 }
+.palette-row.show { display: flex; }
 .swatch {
   width: 16px; height: 16px;
   flex: 0 0 auto;
