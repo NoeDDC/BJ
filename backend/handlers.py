@@ -42,6 +42,12 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # ── helpers ──────────────────────────────────────────────────────
+    def _counters_payload(self):
+        data = db.get_counters()
+        data.update(db.get_meta(db.META_KEYS))
+        data["streaks"] = db.get_streaks()
+        return data
+
     def _send_json(self, obj, status=200):
         body = json.dumps(obj).encode()
         self.send_response(status)
@@ -88,9 +94,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
 
         if path == "/api/counters":
-            data = db.get_counters()
-            data.update(db.get_meta(db.META_KEYS))
-            self._send_json(data)
+            self._send_json(self._counters_payload())
         elif path == "/api/availability":
             self._send_json(db.get_availability())
         elif path == "/api/push/public-key":
@@ -131,9 +135,7 @@ class Handler(BaseHTTPRequestHandler):
             body = self._read_json_body()
             body.pop("jours_sans_course", None)
             db.set_meta(body)
-            result = db.get_counters()
-            result.update(db.get_meta(db.META_KEYS))
-            self._send_json(result)
+            self._send_json(self._counters_payload())
 
         elif path == "/api/counters/adjust":
             body = self._read_json_body()
@@ -148,13 +150,12 @@ class Handler(BaseHTTPRequestHandler):
             elif key in db.KEYS and delta:
                 old = db.get_counters()
                 db.adjust_counter(key, delta)
+                person, ttype = key[0], key[1]
+                db.bump_streak(person, ttype, delta)
                 if db.get_counters().get(key, 0) > old.get(key, 0):
-                    person, ttype = key[0], key[1]
                     threading.Thread(target=_notify_journee_added, args=(person, ttype), daemon=True).start()
 
-            result = db.get_counters()
-            result.update(db.get_meta(db.META_KEYS))
-            self._send_json(result)
+            self._send_json(self._counters_payload())
 
         elif path == "/api/availability":
             body = self._read_json_body()

@@ -11,25 +11,16 @@ if (window.visualViewport) {
 }
 
 /* ── state ── */
-const state = { z: { g: 0, b: 0 }, n: { g: 0, b: 0 }, theme: 'theme-1', jours_sans_course: 0 };
+const state = {
+  z: { g: 0, b: 0 }, n: { g: 0, b: 0 },
+  theme: 'theme-1', jours_sans_course: 0,
+  streaks: { z: { count: 0, type: null }, n: { count: 0, type: null } }
+};
 const MAX_H = 42;
 
-/* ── streak history (localStorage, per device) ── */
-function loadHist(p)   { try { return JSON.parse(localStorage.getItem('hist-'+p) || '[]'); } catch(e) { return []; } }
-function saveHist(p,h) { try { localStorage.setItem('hist-'+p, JSON.stringify(h)); } catch(e) {} }
-
-const hist = { z: loadHist('z'), n: loadHist('n') };
-
-function computeStreak(h) {
-  if (!h.length) return { count: 0, type: null };
-  const last = h[h.length - 1];
-  let count = 0;
-  for (let i = h.length - 1; i >= 0 && h[i] === last; i--) count++;
-  return { count, type: last };
-}
-
+/* ── streak (stored server-side, so both people see the same running streak) ── */
 function renderStreak(p) {
-  const s      = computeStreak(hist[p]);
+  const s      = state.streaks[p] || { count: 0, type: null };
   const numEl  = document.getElementById('snum-' + p);
   const lblEl  = document.getElementById('slbl-' + p);
   const dotsEl = document.getElementById('dots-' + p);
@@ -176,9 +167,7 @@ function render() {
   document.getElementById('total').textContent   = vals.reduce((a, b) => a + b, 0);
   document.getElementById('running-count').textContent = state.jours_sans_course;
   document.body.className = state.theme || 'theme-1';
-  if (document.getElementById('themeSelect')) {
-    document.getElementById('themeSelect').value = state.theme;
-  }
+  document.querySelectorAll('#paletteRow .swatch').forEach(b => b.classList.toggle('active', b.dataset.variant === state.theme));
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
     const ink = getComputedStyle(document.body).getPropertyValue('--ink').trim();
@@ -196,15 +185,6 @@ function change(person, type, delta) {
   render();
   saveAdjust(person + type, next - prev);
   showPopup(person, type, delta);
-
-  if (delta > 0) {
-    hist[person].push(type);
-    if (hist[person].length > 60) hist[person].shift();
-  } else {
-    hist[person].pop();
-  }
-  saveHist(person, hist[person]);
-  renderStreak(person);
 
   const barEl = document.getElementById('bar-' + person + type);
   barEl.classList.remove('bump', 'dip');
@@ -233,6 +213,7 @@ async function load() {
     state.n.b = data.nb ?? 0;
     state.theme = data.theme || 'theme-1';
     state.jours_sans_course = parseInt(data.jours_sans_course || "0") || 0;
+    state.streaks = data.streaks || state.streaks;
     render();
     renderStreak('z');
     renderStreak('n');
@@ -245,7 +226,8 @@ async function load() {
 // Sends only the delta for one counter — never the whole local snapshot —
 // so a stale tab can't clobber increments made from another device since
 // this one last loaded. The server applies it atomically and returns the
-// authoritative totals, which we adopt here to self-heal any staleness.
+// authoritative totals (including streaks, which live server-side so both
+// people always see the same running streak), which we adopt here.
 async function saveAdjust(key, delta) {
   try {
     const res = await fetch('/api/counters/adjust', {
@@ -260,7 +242,10 @@ async function saveAdjust(key, delta) {
     state.n.g = data.ng ?? state.n.g;
     state.n.b = data.nb ?? state.n.b;
     state.jours_sans_course = parseInt(data.jours_sans_course || "0") || 0;
+    state.streaks = data.streaks || state.streaks;
     render();
+    renderStreak('z');
+    renderStreak('n');
     setStatus('');
   } catch(e) {
     setStatus('Erreur de sauvegarde');
@@ -516,7 +501,8 @@ function updatePushButton(active) {
   btn.classList.remove('blocked');
   btn.disabled = false;
   btn.classList.toggle('active', active);
-  btn.textContent = active ? '🔔 Notifications activées' : '🔕 Activer les notifications';
+  btn.textContent = active ? '🔔' : '🔕';
+  btn.title = active ? 'Notifications activées' : 'Activer les notifications';
 }
 
 async function initPush() {
@@ -527,7 +513,8 @@ async function initPush() {
     return;
   }
   if (Notification.permission === 'denied') {
-    btn.textContent = '🔕 Notifications bloquées par le navigateur';
+    btn.textContent = '🔕';
+    btn.title = 'Notifications bloquées par le navigateur';
     btn.classList.add('blocked');
     btn.disabled = true;
     return;

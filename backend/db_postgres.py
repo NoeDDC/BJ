@@ -28,6 +28,7 @@ def init_db(database_url):
         auth TEXT NOT NULL
     )""")
     cur.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS streaks (person TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL DEFAULT '')")
     for k in KEYS:
         cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
     for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
@@ -36,6 +37,10 @@ def init_db(database_url):
         cur.execute(
             "INSERT INTO ics_tokens (person, token) VALUES (%s, %s) ON CONFLICT (person) DO NOTHING",
             (p, secrets.token_urlsafe(24)),
+        )
+        cur.execute(
+            "INSERT INTO streaks (person, count, type) VALUES (%s, 0, '') ON CONFLICT (person) DO NOTHING",
+            (p,),
         )
     con.commit()
     cur.close()
@@ -76,6 +81,48 @@ def adjust_running(delta):
     cur.execute(
         "UPDATE meta SET value = GREATEST(0, value::int + %s)::text WHERE key = 'jours_sans_course'",
         (int(delta),),
+    )
+    con.commit()
+    cur.close()
+    con.close()
+
+
+# ── streaks (server-side, so both people see the same running streak) ──
+def get_streaks():
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT person, count, type FROM streaks")
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    result = {p: {"count": 0, "type": None} for p in VALID_PERSONS}
+    for person, count, ttype in rows:
+        if person in result:
+            result[person] = {"count": count, "type": ttype or None}
+    return result
+
+
+def bump_streak(person, ttype, delta):
+    if person not in VALID_PERSONS or ttype not in ("g", "b") or not delta:
+        return
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT count, type FROM streaks WHERE person=%s", (person,))
+    row = cur.fetchone()
+    count, cur_type = row if row else (0, "")
+    if delta > 0:
+        count = count + delta if cur_type == ttype else delta
+        cur_type = ttype
+    elif cur_type == ttype:
+        # a correction on the same type undoes the tail of the current run;
+        # a correction on the other type is further back and doesn't touch it
+        count = max(0, count + delta)
+        if count == 0:
+            cur_type = ""
+    cur.execute(
+        "INSERT INTO streaks (person, count, type) VALUES (%s, %s, %s) "
+        "ON CONFLICT (person) DO UPDATE SET count=EXCLUDED.count, type=EXCLUDED.type",
+        (person, count, cur_type),
     )
     con.commit()
     cur.close()
