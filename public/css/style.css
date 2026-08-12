@@ -97,94 +97,83 @@ body::before {
   flex-direction: column;
 }
 
-/* ── header ── */
+/* ── header: compact — just the title, then a slim capsule with style
+   swatches and the notification toggle side by side ── */
 header {
   flex: 0 0 auto;
   text-align: center;
-  padding: calc(0.6rem + env(safe-area-inset-top, 0px)) 0.75rem 0.6rem;
+  padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0.75rem 0.5rem;
 }
 
-.header-card {
-  width: 100%;
-  max-width: 520px;
-  margin: 0 auto;
-  padding: 0.9rem 1rem 0.8rem;
-  background: var(--ink);
-  border-radius: 22px;
-  box-shadow: 0 14px 34px rgba(0,0,0,0.22);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.header-sub {
-  font-style: italic; font-weight: 300;
-  font-size: 0.62rem;
-  letter-spacing: 0.2em;
-  color: #FFFFFF;
-  text-shadow: 0 1px 8px rgba(0,0,0,0.45);
-}
-
+/* a small dark pill, not bare text on the page — some palettes (e.g. Néon
+   secret) use a near-black --ink on a near-black --paper, so text colored
+   with --ink directly on the page background would be unreadable there */
 h1 {
+  display: inline-block;
   font-family: 'Cinzel', serif;
   font-weight: 400;
-  font-size: clamp(1.05rem, 5.5vw, 1.35rem);
-  letter-spacing: 0.22em;
+  font-size: clamp(0.82rem, 4vw, 1rem);
+  letter-spacing: 0.18em;
   color: #FFFFFF;
-  text-shadow: 0 2px 14px rgba(0,0,0,0.35);
+  background: var(--ink);
+  padding: 0.3rem 1rem;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.16);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.35);
+  margin-bottom: 0.4rem;
 }
 
-.header-rule {
+.header-bar {
   width: 100%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #5A5048 20%, #5A5048 80%, transparent);
-}
-
-.theme-row {
-  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  padding: 0.35rem 0.4rem 0.35rem 0.7rem;
+  background: var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.18);
   display: flex;
-  justify-content: center;
-  gap: 0.5rem;
   align-items: center;
+  gap: 0.5rem;
 }
-.theme-row label {
-  font-family: 'Cinzel', serif;
-  font-size: 1rem;
-  color: #FFFFFF;
-  flex: 0 0 auto;
-}
-.theme-row select {
+
+.palette-row {
   flex: 1 1 auto;
   min-width: 0;
-  border-radius: 999px;
-  border: 1px solid var(--rule);
-  background: rgba(255,255,255,0.94);
-  color: var(--ink);
-  padding: 0.5rem 0.75rem;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 0.9rem;
-  outline: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.28rem;
 }
-.theme-row select:focus { border-color: var(--ink); }
+.swatch {
+  width: 16px; height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--sw1) 50%, var(--sw2) 50%);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s, border-color .12s;
+}
+.swatch:active { transform: scale(0.85); }
+.swatch.active { border-color: #FFFFFF; box-shadow: 0 0 0 2px rgba(0,0,0,0.3); }
 
-.notif-row { width: 100%; }
-.notif-btn {
-  width: 100%;
-  border-radius: 999px;
+.notif-icon-btn {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.08);
   color: #FFFFFF;
-  padding: 0.45rem 0.75rem;
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic; font-weight: 300;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background .15s, border-color .15s;
+  transition: background .15s, border-color .15s, transform .12s;
 }
-.notif-btn.active { background: rgba(201,150,46,0.22); border-color: var(--gold); font-style: normal; }
-.notif-btn.blocked { opacity: 0.55; }
-.notif-btn:active { transform: scale(0.98); }
+.notif-icon-btn.active { background: rgba(201,150,46,0.28); border-color: var(--gold); }
+.notif-icon-btn.blocked { opacity: 0.5; }
+.notif-icon-btn:active { transform: scale(0.9); }
 
 /* ── views ── */
 .views-container {

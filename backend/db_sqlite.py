@@ -23,6 +23,7 @@ def init_db(db_path):
         auth TEXT NOT NULL
     )""")
     con.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
+    con.execute("CREATE TABLE IF NOT EXISTS streaks (person TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL DEFAULT '')")
     for k in KEYS:
         con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme", "theme-1"))
@@ -31,6 +32,7 @@ def init_db(db_path):
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("jours_sans_course", "0"))
     for p in VALID_PERSONS:
         con.execute("INSERT OR IGNORE INTO ics_tokens (person, token) VALUES (?, ?)", (p, secrets.token_urlsafe(24)))
+        con.execute("INSERT OR IGNORE INTO streaks (person, count, type) VALUES (?, 0, '')", (p,))
     con.commit()
     con.close()
 
@@ -66,6 +68,38 @@ def adjust_running(delta):
         "UPDATE meta SET value = CAST(MAX(0, CAST(value AS INTEGER) + ?) AS TEXT) WHERE key = 'jours_sans_course'",
         (int(delta),),
     )
+    con.commit()
+    con.close()
+
+
+# ── streaks (server-side, so both people see the same running streak) ──
+def get_streaks():
+    con = _connect()
+    rows = con.execute("SELECT person, count, type FROM streaks").fetchall()
+    con.close()
+    result = {p: {"count": 0, "type": None} for p in VALID_PERSONS}
+    for person, count, ttype in rows:
+        if person in result:
+            result[person] = {"count": count, "type": ttype or None}
+    return result
+
+
+def bump_streak(person, ttype, delta):
+    if person not in VALID_PERSONS or ttype not in ("g", "b") or not delta:
+        return
+    con = _connect()
+    row = con.execute("SELECT count, type FROM streaks WHERE person=?", (person,)).fetchone()
+    count, cur_type = row if row else (0, "")
+    if delta > 0:
+        count = count + delta if cur_type == ttype else delta
+        cur_type = ttype
+    elif cur_type == ttype:
+        # a correction on the same type undoes the tail of the current run;
+        # a correction on the other type is further back and doesn't touch it
+        count = max(0, count + delta)
+        if count == 0:
+            cur_type = ""
+    con.execute("INSERT OR REPLACE INTO streaks (person, count, type) VALUES (?, ?, ?)", (person, count, cur_type))
     con.commit()
     con.close()
 

@@ -41,6 +41,14 @@ def adjust_running(delta):
     return _impl.adjust_running(delta)
 
 
+def get_streaks():
+    return _impl.get_streaks()
+
+
+def bump_streak(person, ttype, delta):
+    return _impl.bump_streak(person, ttype, delta)
+
+
 def get_meta(keys):
     return _impl.get_meta(keys)
 
