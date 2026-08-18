@@ -112,10 +112,10 @@ def draw_wordmark(size, safe_ratio):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    draw_wordmark(512, 0.56).save(os.path.join(OUT, "icon-512.png"))
-    draw_wordmark(192, 0.56).save(os.path.join(OUT, "icon-192.png"))
+    draw_mark(512, 0.60).save(os.path.join(OUT, "icon-512.png"))
+    draw_mark(192, 0.60).save(os.path.join(OUT, "icon-192.png"))
     draw_mark(512, 0.42).save(os.path.join(OUT, "icon-maskable-512.png"))
-    draw_wordmark(180, 0.58).save(os.path.join(OUT, "apple-touch-icon.png"))
+    draw_mark(180, 0.62).save(os.path.join(OUT, "apple-touch-icon.png"))
     draw_mark(32, 0.66).save(os.path.join(OUT, "favicon-32.png"))
     print("Icons written to", os.path.normpath(OUT))
 

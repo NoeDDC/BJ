@@ -11,9 +11,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Bonne journée" />
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=3" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=3" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=3" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=4" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=4" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=4" />
 
   <title>Bonne journée</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -178,6 +178,21 @@
       </div>
     </div>
 
+    <!-- ── RAPPEL DISCUSSION ── -->
+    <div id="view-notes" class="view">
+      <div class="notes-eyebrow">— à se dire —</div>
+      <div class="notes-hint">Note un mot, une anecdote, un truc à raconter. L'autre ne voit pas ce que tu écris — juste combien tu en as en réserve.</div>
+
+      <div class="notes-add-row">
+        <input type="text" id="noteInput" class="notes-input" placeholder="Un mot, une anecdote…" maxlength="200" onkeydown="if(event.key==='Enter') addNote()" />
+        <button class="notes-add-btn" onclick="addNote()" aria-label="Ajouter">＋</button>
+      </div>
+
+      <div class="notes-mine" id="notesMine"></div>
+
+      <div class="notes-other" id="notesOther"></div>
+    </div>
+
   </div>
 
   <nav class="bottom-nav">
@@ -186,6 +201,9 @@
     </button>
     <button class="nav-btn" data-view="calendar" onclick="switchView('calendar')">
       <span class="nav-icon">📅</span>Calendrier
+    </button>
+    <button class="nav-btn" data-view="notes" onclick="switchView('notes')">
+      <span class="nav-icon">💬</span>Discuter
     </button>
   </nav>
 
@@ -205,7 +223,7 @@
 <!-- PERSON GATE -->
 <div class="gate-overlay" id="personGate">
   <div class="gate-card">
-    <div class="gate-eyebrow">— calendrier des disponibilités —</div>
+    <div class="gate-eyebrow">— pour continuer —</div>
     <h2 class="gate-title">Qui es-tu ?</h2>
     <div class="gate-buttons">
       <button class="gate-btn gate-z" onclick="choosePerson('z')">

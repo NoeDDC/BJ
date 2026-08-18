@@ -8,7 +8,7 @@ import secrets
 
 import psycopg2
 
-from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
+from .constants import DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, VALID_PERSONS, VALID_STATUSES
 
 _dsn = None
 
@@ -29,6 +29,12 @@ def init_db(database_url):
     )""")
     cur.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     cur.execute("CREATE TABLE IF NOT EXISTS streaks (person TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL DEFAULT '')")
+    cur.execute("""CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        person TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )""")
     for k in KEYS:
         cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
     for k, v in (("theme", "theme-1"), ("message_zn", ""), ("message_nz", ""), ("jours_sans_course", "0")):
@@ -253,3 +259,51 @@ def find_person_by_ics_token(token):
     cur.close()
     con.close()
     return row[0] if row else None
+
+
+# ── discussion notes ─────────────────────────────────────────────────
+def add_note(person, text):
+    text = (text or "").strip()[:NOTE_MAX_LEN]
+    if person not in VALID_PERSONS or not text:
+        return
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("INSERT INTO notes (person, text) VALUES (%s, %s)", (person, text))
+    con.commit()
+    cur.close()
+    con.close()
+
+
+def get_notes(person):
+    if person not in VALID_PERSONS:
+        return []
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT id, text, created_at FROM notes WHERE person=%s ORDER BY id ASC", (person,))
+    rows = cur.fetchall()
+    cur.close()
+    con.close()
+    return [{"id": i, "text": t, "created_at": c.isoformat() if c else None} for i, t, c in rows]
+
+
+def count_notes(person):
+    if person not in VALID_PERSONS:
+        return 0
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("SELECT COUNT(*) FROM notes WHERE person=%s", (person,))
+    row = cur.fetchone()
+    cur.close()
+    con.close()
+    return row[0] if row else 0
+
+
+def delete_note(person, note_id):
+    if person not in VALID_PERSONS:
+        return
+    con = _connect()
+    cur = con.cursor()
+    cur.execute("DELETE FROM notes WHERE id=%s AND person=%s", (note_id, person))
+    con.commit()
+    cur.close()
+    con.close()

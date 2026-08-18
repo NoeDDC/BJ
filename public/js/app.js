@@ -305,6 +305,11 @@ function switchView(view) {
     clearInterval(calPollTimer);
     calPollTimer = null;
   }
+
+  if (view === 'notes') {
+    if (!currentPerson) { showGate(); }
+    loadNotes();
+  }
 }
 
 function showGate() { document.getElementById('personGate').classList.add('show'); }
@@ -318,6 +323,7 @@ function choosePerson(p) {
   renderCalendarGrid();
   updateSubscribeButton();
   loadCalendarLinks();
+  loadNotes();
   if (pendingPushToggle) { pendingPushToggle = false; togglePush(); }
 }
 
@@ -489,6 +495,87 @@ function copySubscribeLink() {
 function setSubscribeHint(msg) {
   const el = document.getElementById('subscribeHint');
   if (el) el.textContent = msg;
+}
+
+/* ══════════════════ RAPPEL DISCUSSION ══════════════════ */
+
+let notesState = { mine: [], otherCount: 0 };
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+async function loadNotes() {
+  if (!currentPerson) { renderNotes(); return; }
+  try {
+    const res = await fetch('/api/notes?person=' + currentPerson);
+    notesState = await res.json();
+  } catch(e) {}
+  renderNotes();
+}
+
+function renderNotes() {
+  const mineEl = document.getElementById('notesMine');
+  const otherEl = document.getElementById('notesOther');
+  if (!mineEl || !otherEl) return;
+
+  if (!currentPerson) {
+    mineEl.innerHTML = '';
+    otherEl.innerHTML = '';
+    return;
+  }
+
+  const other = otherPerson();
+  const otherName = other === 'z' ? 'Zoé' : 'Noé';
+  const n = notesState.otherCount || 0;
+  const otherMsg = n === 0
+    ? `${otherName} n'a rien noté pour l'instant`
+    : `${otherName} a <b>${n}</b> sujet${n > 1 ? 's' : ''} en réserve`;
+  otherEl.innerHTML = `<div class="notes-other-card"><span class="notes-other-icon">🤫</span><span class="notes-other-text">${otherMsg}</span></div>`;
+
+  const mine = notesState.mine || [];
+  if (!mine.length) {
+    mineEl.innerHTML = '<div class="notes-empty">Rien pour l\'instant — note ce qui te passe par la tête.</div>';
+    return;
+  }
+  mineEl.innerHTML = mine.map(note => `
+    <div class="note-item">
+      <span class="note-text">${escapeHtml(note.text)}</span>
+      <button class="note-del" onclick="deleteNote(${note.id})" aria-label="Supprimer">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addNote() {
+  if (!currentPerson) { showGate(); return; }
+  const input = document.getElementById('noteInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  try {
+    const res = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ person: currentPerson, text })
+    });
+    notesState = await res.json();
+    renderNotes();
+  } catch(e) {}
+}
+
+async function deleteNote(id) {
+  if (!currentPerson) return;
+  try {
+    const res = await fetch('/api/notes/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ person: currentPerson, id })
+    });
+    notesState = await res.json();
+    renderNotes();
+  } catch(e) {}
 }
 
 /* ══════════════════ NOTIFICATIONS PUSH ══════════════════ */

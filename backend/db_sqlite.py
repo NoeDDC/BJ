@@ -3,7 +3,7 @@ import os
 import secrets
 import sqlite3
 
-from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES
+from .constants import DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, VALID_PERSONS, VALID_STATUSES
 
 DB_PATH = None  # set once by init_db()
 
@@ -24,6 +24,12 @@ def init_db(db_path):
     )""")
     con.execute("CREATE TABLE IF NOT EXISTS ics_tokens (person TEXT PRIMARY KEY, token TEXT NOT NULL UNIQUE)")
     con.execute("CREATE TABLE IF NOT EXISTS streaks (person TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL DEFAULT '')")
+    con.execute("""CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )""")
     for k in KEYS:
         con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
     con.execute("INSERT OR IGNORE INTO meta VALUES (?, ?)", ("theme", "theme-1"))
@@ -200,6 +206,49 @@ def find_person_by_ics_token(token):
     row = con.execute("SELECT person FROM ics_tokens WHERE token=?", (token,)).fetchone()
     con.close()
     return row[0] if row else None
+
+
+# ── discussion notes ─────────────────────────────────────────────────
+def add_note(person, text):
+    text = (text or "").strip()[:NOTE_MAX_LEN]
+    if person not in VALID_PERSONS or not text:
+        return
+    con = _connect()
+    con.execute(
+        "INSERT INTO notes (person, text, created_at) VALUES (?, ?, datetime('now'))",
+        (person, text),
+    )
+    con.commit()
+    con.close()
+
+
+def get_notes(person):
+    if person not in VALID_PERSONS:
+        return []
+    con = _connect()
+    rows = con.execute(
+        "SELECT id, text, created_at FROM notes WHERE person=? ORDER BY id ASC", (person,)
+    ).fetchall()
+    con.close()
+    return [{"id": i, "text": t, "created_at": c} for i, t, c in rows]
+
+
+def count_notes(person):
+    if person not in VALID_PERSONS:
+        return 0
+    con = _connect()
+    row = con.execute("SELECT COUNT(*) FROM notes WHERE person=?", (person,)).fetchone()
+    con.close()
+    return row[0] if row else 0
+
+
+def delete_note(person, note_id):
+    if person not in VALID_PERSONS:
+        return
+    con = _connect()
+    con.execute("DELETE FROM notes WHERE id=? AND person=?", (note_id, person))
+    con.commit()
+    con.close()
 
 
 # ── raw export (used by the Neon migration script) ─────────────────────

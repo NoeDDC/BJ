@@ -7,3 +7,4 @@ META_KEYS = ("theme", "message_zn", "message_nz", "jours_sans_course")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 VALID_PERSONS = ("z", "n")
 VALID_STATUSES = ("free", "busy")
+NOTE_MAX_LEN = 200

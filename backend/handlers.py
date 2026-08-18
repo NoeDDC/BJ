@@ -4,7 +4,7 @@ import mimetypes
 import os
 import threading
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from . import db, ics, push
 
@@ -47,6 +47,10 @@ class Handler(BaseHTTPRequestHandler):
         data.update(db.get_meta(db.META_KEYS))
         data["streaks"] = db.get_streaks()
         return data
+
+    def _notes_payload(self, person):
+        other = "n" if person == "z" else "z"
+        return {"mine": db.get_notes(person), "otherCount": db.count_notes(other)}
 
     def _send_json(self, obj, status=200):
         body = json.dumps(obj).encode()
@@ -91,12 +95,19 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── GET ──────────────────────────────────────────────────────────
     def do_GET(self):
-        path = urlsplit(self.path).path
+        parsed = urlsplit(self.path)
+        path = parsed.path
 
         if path == "/api/counters":
             self._send_json(self._counters_payload())
         elif path == "/api/availability":
             self._send_json(db.get_availability())
+        elif path == "/api/notes":
+            person = parse_qs(parsed.query).get("person", [None])[0]
+            if person not in db.VALID_PERSONS:
+                self.send_error(400)
+                return
+            self._send_json(self._notes_payload(person))
         elif path == "/api/push/public-key":
             self._send_json({"publicKey": push.get_public_key()})
         elif path == "/api/calendar-links":
@@ -161,6 +172,29 @@ class Handler(BaseHTTPRequestHandler):
             body = self._read_json_body()
             db.set_availability(body.get("person"), body.get("date"), body.get("status"))
             self._send_json(db.get_availability())
+
+        elif path == "/api/notes":
+            body = self._read_json_body()
+            person = body.get("person")
+            if person not in db.VALID_PERSONS:
+                self.send_error(400)
+                return
+            db.add_note(person, body.get("text"))
+            self._send_json(self._notes_payload(person))
+
+        elif path == "/api/notes/delete":
+            body = self._read_json_body()
+            person = body.get("person")
+            if person not in db.VALID_PERSONS:
+                self.send_error(400)
+                return
+            try:
+                note_id = int(body.get("id"))
+            except (TypeError, ValueError):
+                note_id = None
+            if note_id is not None:
+                db.delete_note(person, note_id)
+            self._send_json(self._notes_payload(person))
 
         elif path == "/api/push/subscribe":
             body = self._read_json_body()

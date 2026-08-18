@@ -8,7 +8,7 @@ has already been imported.
 """
 import os
 
-from .constants import DATE_RE, KEYS, META_KEYS, VALID_PERSONS, VALID_STATUSES  # noqa: F401 (re-exported)
+from .constants import DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, VALID_PERSONS, VALID_STATUSES  # noqa: F401 (re-exported)
 
 _impl = None
 BACKEND = None
@@ -83,3 +83,19 @@ def get_ics_token(person):
 
 def find_person_by_ics_token(token):
     return _impl.find_person_by_ics_token(token)
+
+
+def add_note(person, text):
+    return _impl.add_note(person, text)
+
+
+def get_notes(person):
+    return _impl.get_notes(person)
+
+
+def count_notes(person):
+    return _impl.count_notes(person)
+
+
+def delete_note(person, note_id):
+    return _impl.delete_note(person, note_id)
