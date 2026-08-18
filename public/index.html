@@ -73,7 +73,7 @@
           </div>
           <div class="streak" id="streak-z">
             <div class="streak-dots" id="dots-z"></div>
-            <div class="streak-num empty" id="snum-z">—</div>
+            <div class="streak-num empty" id="snum-z">·</div>
             <div class="streak-lbl" id="slbl-z">série de suite</div>
           </div>
           <div class="chart-wrap">
@@ -85,7 +85,7 @@
               <div class="chart-label"><div class="bar-val" id="bv-zg">0</div><div class="bar-lbl">☀︎</div></div>
               <div class="chart-label"><div class="bar-val" id="bv-zb">0</div><div class="bar-lbl">☁︎</div></div>
             </div>
-            <div class="col-total" id="total-z">—</div>
+            <div class="col-total" id="total-z"></div>
           </div>
         </section>
 
@@ -114,7 +114,7 @@
           </div>
           <div class="streak" id="streak-n">
             <div class="streak-dots" id="dots-n"></div>
-            <div class="streak-num empty" id="snum-n">—</div>
+            <div class="streak-num empty" id="snum-n">·</div>
             <div class="streak-lbl" id="slbl-n">série de suite</div>
           </div>
           <div class="chart-wrap">
@@ -126,7 +126,7 @@
               <div class="chart-label"><div class="bar-val" id="bv-ng">0</div><div class="bar-lbl">☀︎</div></div>
               <div class="chart-label"><div class="bar-val" id="bv-nb">0</div><div class="bar-lbl">☁︎</div></div>
             </div>
-            <div class="col-total" id="total-n">—</div>
+            <div class="col-total" id="total-n"></div>
           </div>
         </section>
       </main>
@@ -156,7 +156,7 @@
     <div id="view-calendar" class="view">
       <div class="cal-topbar">
         <button class="cal-nav-btn" onclick="calShiftMonth(-1)" aria-label="Mois précédent">‹</button>
-        <div class="cal-month-label" id="calMonthLabel">—</div>
+        <div class="cal-month-label" id="calMonthLabel"></div>
         <button class="cal-nav-btn" onclick="calShiftMonth(1)" aria-label="Mois suivant">›</button>
       </div>
 
@@ -180,8 +180,8 @@
 
     <!-- ── RAPPEL DISCUSSION ── -->
     <div id="view-notes" class="view">
-      <div class="notes-eyebrow">— à se dire —</div>
-      <div class="notes-hint">Note un mot, une anecdote, un truc à raconter. L'autre ne voit pas ce que tu écris — juste combien tu en as en réserve.</div>
+      <div class="notes-eyebrow">à se dire</div>
+      <div class="notes-hint">Note un mot, une anecdote, un truc à raconter. L'autre ne voit pas ce que tu écris, juste combien tu en as en réserve.</div>
 
       <div class="notes-add-row">
         <input type="text" id="noteInput" class="notes-input" placeholder="Un mot, une anecdote…" maxlength="200" onkeydown="if(event.key==='Enter') addNote()" />
@@ -223,7 +223,7 @@
 <!-- PERSON GATE -->
 <div class="gate-overlay" id="personGate">
   <div class="gate-card">
-    <div class="gate-eyebrow">— pour continuer —</div>
+    <div class="gate-eyebrow">pour continuer</div>
     <h2 class="gate-title">Qui es-tu ?</h2>
     <div class="gate-buttons">
       <button class="gate-btn gate-z" onclick="choosePerson('z')">

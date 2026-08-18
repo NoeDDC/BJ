@@ -26,7 +26,7 @@ function renderStreak(p) {
   const dotsEl = document.getElementById('dots-' + p);
 
   if (s.count === 0) {
-    numEl.textContent = '—';
+    numEl.textContent = '·';
     numEl.className   = 'streak-num empty';
     lblEl.textContent = 'série de suite';
     dotsEl.innerHTML  = '';
@@ -83,10 +83,10 @@ const MSGS = {
     "Même les orages ont une fin.",
     "Tu l'as traversée. C'est l'essentiel.",
     "Certains jours résistent. Toi aussi.",
-    "Ce jour-là est compté — et il appartient déjà au passé.",
+    "Ce jour-là est compté, et il appartient déjà au passé.",
     "Il faut bien des nuages pour apprécier le ciel bleu.",
     "Mauvaise journée, mais bonne résilience.",
-    "Ça ne durera pas — les mauvaises journées n'ont jamais le dernier mot.",
+    "Ça ne durera pas : les mauvaises journées n'ont jamais le dernier mot.",
     "Même dans les jours difficiles, quelque chose tient.",
     "Ce soir, pose tout ça et dors.",
   ],
@@ -116,15 +116,15 @@ function showPopup(person, type, delta) {
   if (delta < 0) {
     pool       = MSGS.minus;
     dotClass   = type === 'g' ? 'dot-good-' + person : 'dot-bad-' + person;
-    accentText = '— correction —';
+    accentText = 'correction';
   } else if (type === 'g') {
     pool       = MSGS.good;
     dotClass   = 'dot-good-' + person;
-    accentText = person === 'z' ? '— Z · bonne journée —' : '— N · bonne journée —';
+    accentText = person === 'z' ? 'Z · bonne journée' : 'N · bonne journée';
   } else {
     pool       = MSGS.bad;
     dotClass   = 'dot-bad-' + person;
-    accentText = person === 'z' ? '— Z · mauvaise journée —' : '— N · mauvaise journée —';
+    accentText = person === 'z' ? 'Z · mauvaise journée' : 'N · mauvaise journée';
   }
 
   dot.className      = 'popup-dot ' + dotClass;
@@ -473,7 +473,7 @@ function copySubscribeLink() {
     // may be refused by the browser.
     loadCalendarLinks().then(links => {
       const u = links && links[other];
-      setSubscribeHint(u || 'Erreur — réessaie dans un instant.');
+      setSubscribeHint(u || 'Erreur : réessaie dans un instant.');
     });
     return;
   }
@@ -537,7 +537,7 @@ function renderNotes() {
 
   const mine = notesState.mine || [];
   if (!mine.length) {
-    mineEl.innerHTML = '<div class="notes-empty">Rien pour l\'instant — note ce qui te passe par la tête.</div>';
+    mineEl.innerHTML = '<div class="notes-empty">Rien pour l\'instant</div>';
     return;
   }
   mineEl.innerHTML = mine.map(note => `
