@@ -184,7 +184,7 @@
       <div class="notes-hint">Note un mot, une anecdote, un truc à raconter. L'autre ne voit pas ce que tu écris, juste combien tu en as en réserve.</div>
 
       <div class="notes-add-row">
-        <input type="text" id="noteInput" class="notes-input" placeholder="Un mot, une anecdote…" maxlength="200" onkeydown="if(event.key==='Enter') addNote()" />
+        <input type="text" id="noteInput" class="notes-input" placeholder="Un mot, une anecdote…" maxlength="200" enterkeyhint="send" autocomplete="off" autocapitalize="sentences" onkeydown="if(event.key==='Enter') addNote()" />
         <button class="notes-add-btn" onclick="addNote()" aria-label="Ajouter">＋</button>
       </div>
 

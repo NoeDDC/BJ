@@ -86,12 +86,15 @@ body::before {
     repeating-linear-gradient(90deg,  transparent, transparent 79px, var(--n) 79px, var(--n) 80px);
 }
 
-/* ── app shell ── */
+/* ── app shell ──
+   inset:0 and no explicit height: the shell is exactly the browser's layout
+   viewport, and the nav sits at its bottom as a normal flex child. The one
+   thing that can still push it off the screen edge is WebKit's installed-PWA
+   bug where the viewport shrinks when the keyboard opens and never grows
+   back; that is healed in JS (healViewport in app.js). */
 .page {
   position: fixed;
   inset: 0;
-  height: 100dvh;
-  height: var(--app-height, 100dvh); /* set by JS from visualViewport — more reliable than vh/dvh in installed iOS PWAs */
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -192,7 +195,6 @@ h1 {
   position: absolute; inset: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   opacity: 0;
@@ -328,24 +330,27 @@ footer {
 .footer-total { font-style: italic; font-weight: 300; font-size: 1rem; color: var(--muted); opacity: 0.8; }
 .footer-status { font-style: italic; font-size: 0.62rem; color: var(--muted); opacity: .5; min-height: 1em; }
 
-.running-counter-section { flex: 0 0 auto; padding: 0.7rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; }
+/* one compact row (label · number · unit · buttons) instead of a tall stacked
+   card, so it needs far less scrolling to reach on a phone */
+.running-counter-section { flex: 0 0 auto; padding: 0.6rem 0.9rem 1rem; display: flex; justify-content: center; }
 .running-counter {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.7rem;
-  padding: 0.9rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0.7rem 0.55rem 0.95rem;
   border-radius: 14px;
   border: 1px solid var(--rule);
-  width: 100%; max-width: 320px;
+  background: rgba(255,255,255,0.35);
+  width: 100%; max-width: 360px;
 }
-.running-counter-lbl { font-style: italic; font-weight: 300; font-size: 0.85rem; color: var(--muted); text-align: center; line-height: 1.3; }
-.running-counter-val { font-family: 'Cinzel', serif; font-size: 2.1rem; font-weight: 500; color: var(--ink); line-height: 1; }
-.running-counter-unit { font-style: italic; font-weight: 300; font-size: 0.78rem; color: var(--muted); }
-.running-counter-btns { display: flex; gap: 0.6rem; }
+.running-counter-lbl { flex: 1 1 auto; font-style: italic; font-weight: 300; font-size: 0.82rem; color: var(--muted); line-height: 1.25; }
+.running-counter-val { font-family: 'Cinzel', serif; font-size: 1.45rem; font-weight: 500; color: var(--ink); line-height: 1; }
+.running-counter-unit { font-style: italic; font-weight: 300; font-size: 0.74rem; color: var(--muted); margin-right: 0.25rem; }
+.running-counter-btns { display: flex; gap: 0.4rem; flex: 0 0 auto; }
 .running-counter-btn {
-  width: 42px; height: 42px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 50%;
   border: 1.5px solid var(--muted);
   background: transparent;
   cursor: pointer;
-  font-size: 1.25rem; font-weight: 300;
+  font-size: 1.1rem; font-weight: 300;
   display: flex; align-items: center; justify-content: center;
   color: var(--muted);
   -webkit-tap-highlight-color: transparent;
@@ -388,15 +393,12 @@ footer {
 .dot-good-n { background: var(--n); } .dot-bad-n { background: var(--n-light); border: 1px solid var(--n2); }
 
 /* ── bottom nav ──
-   Pinned via position:fixed directly to the viewport edge, independent of
-   .page's own height — vh/dvh (and even JS-measured viewport height) have
-   proven unreliable in installed iOS PWAs, but a plain fixed+bottom:0
-   element anchors to the true visual viewport regardless. */
+   A flex child at the bottom of .page rather than a position:fixed overlay:
+   the views above it get exactly the remaining height, so nothing can end up
+   hidden behind the nav and no per-view bottom padding is needed. */
 .bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: 0 0 auto;
+  position: relative;
   z-index: 20;
   display: flex;
   border-top: 1px solid var(--rule);
@@ -422,7 +424,7 @@ footer {
 .nav-btn:active .nav-icon { transform: scale(0.92); }
 
 /* ── calendar view ── */
-#view-calendar { padding: 1rem 1rem calc(1.2rem + env(safe-area-inset-bottom,0px)); gap: 0.9rem; }
+#view-calendar { padding: 1rem 1rem 1.2rem; gap: 0.9rem; }
 
 .cal-topbar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
 .cal-nav-btn {
@@ -525,7 +527,7 @@ footer {
 }
 
 /* ── rappel discussion ── */
-#view-notes { padding: 1.1rem 1rem calc(1.2rem + env(safe-area-inset-bottom,0px)); gap: 0.9rem; }
+#view-notes { padding: 1.1rem 1rem 1.2rem; gap: 0.9rem; }
 
 .notes-eyebrow { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); text-align: center; }
 .notes-hint { text-align: center; font-style: italic; font-size: 0.74rem; color: var(--muted); line-height: 1.5; max-width: 360px; margin: 0 auto; }
@@ -568,6 +570,7 @@ footer {
   border-radius: 12px;
   background: rgba(255,255,255,0.5);
 }
+.note-item.pending { opacity: 0.55; } /* added locally, not yet confirmed by the server */
 .note-text { font-size: 0.88rem; line-height: 1.4; word-break: break-word; }
 .note-del {
   flex: 0 0 auto;

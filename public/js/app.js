@@ -1,13 +1,60 @@
-/* ── real viewport height (works around iOS PWA vh/dvh bugs) ── */
-function setAppHeight() {
-  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  document.documentElement.style.setProperty('--app-height', h + 'px');
+/* ── iOS installed-PWA viewport bug ──
+   When the on-screen keyboard opens in a home-screen web app, WebKit shrinks
+   the layout viewport (window.innerHeight drops by ~60px) and does not grow
+   it back when the keyboard closes. Every inset:0 / position:fixed layout
+   then ends ~60px above the real screen edge for the rest of the session,
+   which is the "gap under the bottom nav" seen on iPhone. Forcing a
+   remeasure by toggling display on the full-screen root snaps it back; the
+   synchronous reflow in between means nothing is painted in the hidden
+   state. */
+let maxViewportH = window.innerHeight;
+let lastViewportW = window.innerWidth;
+
+function isInstalledApp() {
+  return window.navigator.standalone === true ||
+         (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 }
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+
+function isTyping() {
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+}
+
+function healViewport() {
+  window.scrollTo(0, 0);
+  if (!isInstalledApp()) return;                            // the bug only exists in home-screen mode
+  if (Math.abs(window.innerWidth - lastViewportW) > 40) {   // rotated: new baseline
+    lastViewportW = window.innerWidth;
+    maxViewportH = window.innerHeight;
+  }
+  if (window.innerHeight > maxViewportH) maxViewportH = window.innerHeight;
+  const shrink = maxViewportH - window.innerHeight;
+  if (shrink <= 4) return;
+  // A real keyboard takes 200px+. A ~60px deficit while an input still has
+  // focus means the keyboard was closed with its own hide button, so heal
+  // anyway (the input loses focus, which is what the user wanted).
+  if (isTyping() && shrink > 120) return;
+
+  const page = document.getElementById('appContent');
+  const view = document.querySelector('.view.active');
+  const scrollTop = view ? view.scrollTop : 0;
+  page.style.display = 'none';
+  void page.offsetHeight;
+  page.style.display = '';
+  if (view) view.scrollTop = scrollTop;
+}
+
+document.addEventListener('focusout', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) {
+    setTimeout(healViewport, 150);   // right after the keyboard slides away
+    setTimeout(healViewport, 600);   // and once more, iOS sometimes settles late
+  }
+});
+window.addEventListener('resize', () => setTimeout(healViewport, 100));
+window.addEventListener('orientationchange', () => setTimeout(healViewport, 300));
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', setAppHeight);
+  window.visualViewport.addEventListener('resize', () => setTimeout(healViewport, 100));
 }
 
 /* ── state ── */
@@ -175,12 +222,29 @@ function render() {
   }
 }
 
+/* Optimistic mirror of the server's streak rule, so the streak box reacts
+   on tap instead of after the network round trip. The server's answer
+   (adopted in saveAdjust) stays authoritative. */
+function applyStreakLocally(person, type, delta) {
+  const s = state.streaks[person] || { count: 0, type: null };
+  if (delta > 0) {
+    s.count = s.type === type ? s.count + delta : delta;
+    s.type = type;
+  } else if (s.type === type) {
+    s.count = Math.max(0, s.count + delta);
+    if (s.count === 0) s.type = null;
+  }
+  state.streaks[person] = s;
+  renderStreak(person);
+}
+
 /* ── change ── */
 function change(person, type, delta) {
   const prev = state[person][type];
   const next = Math.max(0, prev + delta);
   if (next === prev) return;
   state[person][type] = next;
+  applyStreakLocally(person, type, next - prev);
 
   render();
   saveAdjust(person + type, next - prev);
@@ -283,6 +347,7 @@ let currentPerson = localStorage.getItem('bj_person') || null;
 let calYear, calMonth;
 let availability = { z: {}, n: {} };
 let calPollTimer = null;
+let notesPollTimer = null;
 let pendingPushToggle = false;
 
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -309,6 +374,11 @@ function switchView(view) {
   if (view === 'notes') {
     if (!currentPerson) { showGate(); }
     loadNotes();
+    if (notesPollTimer) clearInterval(notesPollTimer);
+    notesPollTimer = setInterval(loadNotes, 30000);
+  } else if (notesPollTimer) {
+    clearInterval(notesPollTimer);
+    notesPollTimer = null;
   }
 }
 
@@ -541,41 +611,60 @@ function renderNotes() {
     return;
   }
   mineEl.innerHTML = mine.map(note => `
-    <div class="note-item">
+    <div class="note-item${note.pending ? ' pending' : ''}">
       <span class="note-text">${escapeHtml(note.text)}</span>
-      <button class="note-del" onclick="deleteNote(${note.id})" aria-label="Supprimer">✕</button>
+      <button class="note-del" onclick="deleteNote('${note.id}')" aria-label="Supprimer"${note.pending ? ' disabled' : ''}>✕</button>
     </div>
   `).join('');
 }
 
+// Both edits below show up instantly (a greyed "pending" note, or the note
+// gone) and are then replaced by the server's answer; on failure the
+// previous list comes back so nothing silently disappears.
 async function addNote() {
   if (!currentPerson) { showGate(); return; }
   const input = document.getElementById('noteInput');
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
+
+  const tempId = 'tmp-' + Date.now();
+  notesState.mine = [...(notesState.mine || []), { id: tempId, text, pending: true }];
+  renderNotes();
+
   try {
     const res = await fetch('/api/notes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ person: currentPerson, text })
     });
+    if (!res.ok) throw new Error();
     notesState = await res.json();
-    renderNotes();
-  } catch(e) {}
+  } catch(e) {
+    notesState.mine = (notesState.mine || []).filter(n => n.id !== tempId);
+    if (!input.value) input.value = text;   // give the text back rather than losing it
+  }
+  renderNotes();
 }
 
 async function deleteNote(id) {
-  if (!currentPerson) return;
+  if (!currentPerson || String(id).startsWith('tmp-')) return;
+  const before = notesState.mine || [];
+  notesState.mine = before.filter(n => String(n.id) !== String(id));
+  renderNotes();
+
   try {
     const res = await fetch('/api/notes/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ person: currentPerson, id })
+      body: JSON.stringify({ person: currentPerson, id: Number(id) })
     });
+    if (!res.ok) throw new Error();
     notesState = await res.json();
-    renderNotes();
-  } catch(e) {}
+  } catch(e) {
+    notesState.mine = before;
+  }
+  renderNotes();
 }
 
 /* ══════════════════ NOTIFICATIONS PUSH ══════════════════ */
@@ -658,6 +747,23 @@ async function togglePush() {
     updatePushButton(false);
   }
 }
+
+/* ── refresh when the app comes back to the foreground ──
+   There is no polling on the journal, so this is how the other person's
+   taps show up when the installed app is reopened. */
+function refreshActiveView() {
+  load();
+  const activeBtn = document.querySelector('.nav-btn.active');
+  const view = activeBtn ? activeBtn.dataset.view : 'journal';
+  if (view === 'calendar') loadAvailability().then(() => renderCalendarGrid());
+  if (view === 'notes') loadNotes();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  refreshActiveView();
+  setTimeout(healViewport, 200);
+});
+window.addEventListener('pageshow', e => { if (e.persisted) refreshActiveView(); });
 
 /* ── init ── */
 load();

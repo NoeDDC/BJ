@@ -25,7 +25,7 @@ backend/
   constants.py         clés/tables partagées entre les deux backends de données
   db.py                aiguilleur : Postgres si DATABASE_URL est définie, sinon SQLite
   db_sqlite.py          implémentation SQLite (dev local)
-  db_postgres.py        implémentation Postgres/Neon (prod)
+  db_postgres.py        implémentation Postgres/Neon (prod), avec un pool de connexions réutilisées
   push.py               clés VAPID + envoi des notifications web push
   handlers.py           routes de l'API + service des fichiers statiques
 public/                tout ce qui est servi au navigateur
@@ -80,6 +80,14 @@ Le script lit `DB` (chemin SQLite) et `DATABASE_URL` (Neon) depuis les variables
 ### 4. Redéployer
 
 Une fois la migration confirmée, redéploie le service. Le prochain démarrage détecte `DATABASE_URL`, bascule automatiquement sur Postgres (le log de démarrage affichera `DB backend: postgres`), et les tables sont créées si besoin (les données migrées à l'étape 3 sont déjà là).
+
+## Performance : ce qui vient du code, ce qui vient de l'hébergement
+
+Chaque requête API emprunte une connexion Postgres déjà ouverte (pool dans `backend/db_postgres.py`) au lieu d'en ouvrir une nouvelle. Ouvrir une connexion vers Neon coûte un handshake TLS puis une authentification, soit plusieurs centaines de millisecondes, et un simple clic sur « + » en ouvrait jusqu'à sept. Un clic fait maintenant deux ordres SQL dans une transaction (compteur + série) puis une relecture, le tout sur la même connexion.
+
+Deux lenteurs restent liées à l'hébergement et ne se corrigent pas dans le code :
+- **Render (offre gratuite)** endort le service après 15 min sans trafic : le premier chargement prend alors 30 à 60 s. Une instance payante, ou un cron externe qui appelle `/api/counters` toutes les 10 min, l'évite.
+- **Neon (offre gratuite)** suspend le compute après 5 min d'inactivité : la première requête qui suit prend environ 1 s de plus. Réglable dans Neon → Settings → Compute → « Scale to zero ».
 
 ## Notifications push
 
