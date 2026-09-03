@@ -38,15 +38,19 @@ def _notify_journee_added(person, ttype):
 
 
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.1 keep-alive: the hosting proxy (Render) reuses one TCP
+    # connection to the app for many requests instead of opening a new one
+    # per fetch. This relies on every response carrying a Content-Length
+    # (they all do) and every request body being consumed (see do_POST).
+    protocol_version = "HTTP/1.1"
+    timeout = 30  # an idle keep-alive connection frees its thread after this
+
     def log_message(self, *a):
         pass
 
     # ── helpers ──────────────────────────────────────────────────────
     def _counters_payload(self):
-        data = db.get_counters()
-        data.update(db.get_meta(db.META_KEYS))
-        data["streaks"] = db.get_streaks()
-        return data
+        return db.get_dashboard()
 
     def _notes_payload(self, person):
         other = "n" if person == "z" else "z"
@@ -57,14 +61,22 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(body))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
     def _read_json_body(self):
+        """Read (and always fully consume) the request body. Malformed or
+        non-object JSON is treated as an empty payload."""
         length = int(self.headers.get("Content-Length", 0) or 0)
-        if length == 0:
+        raw = self.rfile.read(length) if length > 0 else b""
+        if not raw:
             return {}
-        return json.loads(self.rfile.read(length))
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            return {}
+        return data if isinstance(data, dict) else {}
 
     def _base_url(self):
         proto = self.headers.get("X-Forwarded-Proto", "").split(",")[0].strip()
@@ -136,6 +148,9 @@ class Handler(BaseHTTPRequestHandler):
     # ── POST ─────────────────────────────────────────────────────────
     def do_POST(self):
         path = urlsplit(self.path).path
+        # Always read the body, even for unknown routes: with keep-alive an
+        # unread body would be parsed as the start of the next request.
+        body = self._read_json_body()
 
         if path == "/api/counters":
             # Meta only (currently: theme). Counter values, and running
@@ -143,13 +158,11 @@ class Handler(BaseHTTPRequestHandler):
             # snapshots here — see /api/counters/adjust — because a client
             # sending its whole locally-held state back can clobber
             # increments another device made in the meantime.
-            body = self._read_json_body()
             body.pop("jours_sans_course", None)
             db.set_meta(body)
             self._send_json(self._counters_payload())
 
         elif path == "/api/counters/adjust":
-            body = self._read_json_body()
             key = body.get("key")
             try:
                 delta = int(body.get("delta", 0))
@@ -159,22 +172,18 @@ class Handler(BaseHTTPRequestHandler):
             if key == "jours_sans_course":
                 db.adjust_running(delta)
             elif key in db.KEYS and delta:
-                old = db.get_counters()
-                db.adjust_counter(key, delta)
-                person, ttype = key[0], key[1]
-                db.bump_streak(person, ttype, delta)
-                if db.get_counters().get(key, 0) > old.get(key, 0):
+                increased = db.adjust_journee(key, delta)
+                if increased:
+                    person, ttype = key[0], key[1]
                     threading.Thread(target=_notify_journee_added, args=(person, ttype), daemon=True).start()
 
             self._send_json(self._counters_payload())
 
         elif path == "/api/availability":
-            body = self._read_json_body()
             db.set_availability(body.get("person"), body.get("date"), body.get("status"))
             self._send_json(db.get_availability())
 
         elif path == "/api/notes":
-            body = self._read_json_body()
             person = body.get("person")
             if person not in db.VALID_PERSONS:
                 self.send_error(400)
@@ -183,7 +192,6 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(self._notes_payload(person))
 
         elif path == "/api/notes/delete":
-            body = self._read_json_body()
             person = body.get("person")
             if person not in db.VALID_PERSONS:
                 self.send_error(400)
@@ -197,14 +205,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(self._notes_payload(person))
 
         elif path == "/api/push/subscribe":
-            body = self._read_json_body()
             sub = body.get("subscription") or {}
             keys = sub.get("keys") or {}
             db.add_subscription(body.get("person"), sub.get("endpoint"), keys.get("p256dh"), keys.get("auth"))
             self._send_json({"ok": True})
 
         elif path == "/api/push/unsubscribe":
-            body = self._read_json_body()
             db.remove_subscription(body.get("endpoint"))
             self._send_json({"ok": True})
 

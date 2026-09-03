@@ -49,7 +49,7 @@ def _connect():
     return con
 
 
-# ── counters ──────────────────────────────────────────────────────────
+# ── counters / journal ────────────────────────────────────────────────
 def get_counters():
     con = _connect()
     rows = dict(con.execute("SELECT id, val FROM counters").fetchall())
@@ -57,13 +57,61 @@ def get_counters():
     return {k: rows.get(k, 0) for k in KEYS}
 
 
-def adjust_counter(key, delta):
-    if key not in KEYS or not delta:
-        return
+def _shape_streaks(rows):
+    result = {p: {"count": 0, "type": None} for p in VALID_PERSONS}
+    for person, count, ttype in rows:
+        if person in result:
+            result[person] = {"count": count, "type": ttype or None}
+    return result
+
+
+def get_dashboard():
+    """Everything the journal screen needs — counters, meta and streaks."""
     con = _connect()
-    con.execute("UPDATE counters SET val = MAX(0, val + ?) WHERE id = ?", (int(delta), key))
+    counters = dict(con.execute("SELECT id, val FROM counters").fetchall())
+    meta = dict(con.execute(
+        "SELECT key, value FROM meta WHERE key IN ({})".format(",".join("?" * len(META_KEYS))),
+        META_KEYS,
+    ).fetchall())
+    streaks = con.execute("SELECT person, count, type FROM streaks").fetchall()
+    con.close()
+    data = {k: counters.get(k, 0) for k in KEYS}
+    data.update({k: meta.get(k, "") for k in META_KEYS})
+    data["streaks"] = _shape_streaks(streaks)
+    return data
+
+
+# Same streak rule as the Postgres backend, see db_postgres._STREAK_SQL.
+_STREAK_SQL = """
+    UPDATE streaks SET
+      count = CASE
+                WHEN :d > 0 THEN CASE WHEN type = :t THEN count + :d ELSE :d END
+                WHEN type = :t THEN MAX(0, count + :d)
+                ELSE count
+              END,
+      type  = CASE
+                WHEN :d > 0 THEN :t
+                WHEN type = :t AND count + :d <= 0 THEN ''
+                ELSE type
+              END
+    WHERE person = :p
+"""
+
+
+def adjust_journee(key, delta):
+    """One tap on a journal counter: move the counter (never below 0) and
+    update that person's streak, in one transaction. Returns True if the
+    counter went up."""
+    delta = int(delta)
+    if key not in KEYS or not delta:
+        return False
+    person, ttype = key[0], key[1]
+    con = _connect()
+    con.execute("UPDATE counters SET val = MAX(0, val + ?) WHERE id = ?", (delta, key))
+    con.execute(_STREAK_SQL, {"d": delta, "t": ttype, "p": person})
     con.commit()
     con.close()
+    return delta > 0
 
 
 def adjust_running(delta):
@@ -74,38 +122,6 @@ def adjust_running(delta):
         "UPDATE meta SET value = CAST(MAX(0, CAST(value AS INTEGER) + ?) AS TEXT) WHERE key = 'jours_sans_course'",
         (int(delta),),
     )
-    con.commit()
-    con.close()
-
-
-# ── streaks (server-side, so both people see the same running streak) ──
-def get_streaks():
-    con = _connect()
-    rows = con.execute("SELECT person, count, type FROM streaks").fetchall()
-    con.close()
-    result = {p: {"count": 0, "type": None} for p in VALID_PERSONS}
-    for person, count, ttype in rows:
-        if person in result:
-            result[person] = {"count": count, "type": ttype or None}
-    return result
-
-
-def bump_streak(person, ttype, delta):
-    if person not in VALID_PERSONS or ttype not in ("g", "b") or not delta:
-        return
-    con = _connect()
-    row = con.execute("SELECT count, type FROM streaks WHERE person=?", (person,)).fetchone()
-    count, cur_type = row if row else (0, "")
-    if delta > 0:
-        count = count + delta if cur_type == ttype else delta
-        cur_type = ttype
-    elif cur_type == ttype:
-        # a correction on the same type undoes the tail of the current run;
-        # a correction on the other type is further back and doesn't touch it
-        count = max(0, count + delta)
-        if count == 0:
-            cur_type = ""
-    con.execute("INSERT OR REPLACE INTO streaks (person, count, type) VALUES (?, ?, ?)", (person, count, cur_type))
     con.commit()
     con.close()
 

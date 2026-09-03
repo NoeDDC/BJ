@@ -29,26 +29,27 @@ def init_db(sqlite_path):
         _impl.init_db(sqlite_path)
 
 
+# ── journal ───────────────────────────────────────────────────────────
 def get_counters():
     return _impl.get_counters()
 
 
-def adjust_counter(key, delta):
-    return _impl.adjust_counter(key, delta)
+def get_dashboard():
+    """Counters + meta + streaks in one go (what /api/counters returns)."""
+    return _impl.get_dashboard()
+
+
+def adjust_journee(key, delta):
+    """Apply a +/- tap on one journal counter and its streak. Returns True
+    when the counter went up."""
+    return _impl.adjust_journee(key, delta)
 
 
 def adjust_running(delta):
     return _impl.adjust_running(delta)
 
 
-def get_streaks():
-    return _impl.get_streaks()
-
-
-def bump_streak(person, ttype, delta):
-    return _impl.bump_streak(person, ttype, delta)
-
-
+# ── meta ──────────────────────────────────────────────────────────────
 def get_meta(keys):
     return _impl.get_meta(keys)
 
@@ -57,6 +58,7 @@ def set_meta(data):
     return _impl.set_meta(data)
 
 
+# ── availability ──────────────────────────────────────────────────────
 def get_availability():
     return _impl.get_availability()
 
@@ -65,6 +67,7 @@ def set_availability(person, date, status):
     return _impl.set_availability(person, date, status)
 
 
+# ── push ──────────────────────────────────────────────────────────────
 def add_subscription(person, endpoint, p256dh, auth):
     return _impl.add_subscription(person, endpoint, p256dh, auth)
 
@@ -77,6 +80,7 @@ def get_subscriptions(person):
     return _impl.get_subscriptions(person)
 
 
+# ── ics ───────────────────────────────────────────────────────────────
 def get_ics_token(person):
     return _impl.get_ics_token(person)
 
@@ -85,6 +89,7 @@ def find_person_by_ics_token(token):
     return _impl.find_person_by_ics_token(token)
 
 
+# ── notes ─────────────────────────────────────────────────────────────
 def add_note(person, text):
     return _impl.add_note(person, text)
 
