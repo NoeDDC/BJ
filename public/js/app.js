@@ -461,34 +461,81 @@ function renderCalendarGrid(pulseKey) {
     const key = dateKey(calYear, calMonth, d);
     const zs = availability.z[key];
     const ns = availability.n[key];
-    const both = zs === 'free' && ns === 'free';
+    const both  = zs === 'free' && ns === 'free';              // ★ whole day together
+    const night = !both && nightOk(zs) && nightOk(ns);        // ☾ one of us is out in the evening, the night still works
     const cls = ['day-cell'];
     if (key === todayStr) cls.push('today');
     if (both) cls.push('both-free');
+    if (night) cls.push('night-free');
     if (key === pulseKey) cls.push('pulse');
 
     grid.insertAdjacentHTML('beforeend', `
-      <button class="${cls.join(' ')}" data-date="${key}" onclick="cycleAvailability('${key}')">
+      <button class="${cls.join(' ')}" data-date="${key}">
         <span class="day-num">${d}</span>
         <span class="day-dots">
           <span class="day-dot z ${zs || 'none'}"></span>
           <span class="day-dot n ${ns || 'none'}"></span>
         </span>
-        ${both ? '<span class="day-star">★</span>' : ''}
+        ${both ? '<span class="day-star">★</span>' : (night ? '<span class="day-moon">☾</span>' : '')}
       </button>`);
   }
 }
 
-async function cycleAvailability(key) {
-  if (!currentPerson) { showGate(); return; }
-  const cur = availability[currentPerson][key];
-  const next = cur === 'free' ? null : 'free';
+function nightOk(status) { return status === 'free' || status === 'evening'; }
 
-  if (next) availability[currentPerson][key] = next;
+/* ── gestures on a day: tap = dispo toute la journée (on/off),
+   long press = acti le soir mais dodo possible (on/off) ── */
+const LONG_PRESS_MS = 450;
+let press = null;   // { key, x, y, timer, fired } for the pointer currently down
+
+function applyAvailability(key, status) {
+  if (!currentPerson) { showGate(); return; }
+  if (status) availability[currentPerson][key] = status;
   else delete availability[currentPerson][key];
   renderCalendarGrid(key);
+  saveAvailability(currentPerson, key, status);
+}
 
-  await saveAvailability(currentPerson, key, next);
+function tapAvailability(key) {
+  const cur = availability[currentPerson] && availability[currentPerson][key];
+  applyAvailability(key, cur === 'free' ? null : 'free');
+}
+
+function longPressAvailability(key) {
+  const cur = availability[currentPerson] && availability[currentPerson][key];
+  applyAvailability(key, cur === 'evening' ? null : 'evening');
+}
+
+function initCalendarGestures() {
+  const grid = document.getElementById('calGrid');
+  const cancelPress = () => { if (press && press.timer) { clearTimeout(press.timer); press.timer = null; } };
+
+  grid.addEventListener('pointerdown', e => {
+    const cell = e.target.closest('.day-cell[data-date]');
+    if (!cell) return;
+    cancelPress();
+    press = { key: cell.dataset.date, x: e.clientX, y: e.clientY, timer: null, fired: false };
+    press.timer = setTimeout(() => {
+      press.timer = null;
+      press.fired = true;
+      if (!currentPerson) { showGate(); return; }
+      longPressAvailability(press.key);
+    }, LONG_PRESS_MS);
+  });
+  // a finger that moves is scrolling the month, not pressing
+  grid.addEventListener('pointermove', e => {
+    if (press && press.timer && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) cancelPress();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => grid.addEventListener(t, cancelPress));
+
+  grid.addEventListener('click', e => {
+    const cell = e.target.closest('.day-cell[data-date]');
+    if (!cell) return;
+    if (press && press.fired) { press.fired = false; return; }   // the click that trails a long press
+    if (!currentPerson) { showGate(); return; }
+    tapAvailability(cell.dataset.date);
+  });
+  grid.addEventListener('contextmenu', e => e.preventDefault());   // Android's long-press menu
 }
 
 /* ── lien d'abonnement (.ics) vers les dispos de l'autre ── */
@@ -766,6 +813,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pageshow', e => { if (e.persisted) refreshActiveView(); });
 
 /* ── init ── */
+initCalendarGestures();
 load();
 loadAvailability();
 initPush();

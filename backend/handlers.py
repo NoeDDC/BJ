@@ -132,8 +132,8 @@ class Handler(BaseHTTPRequestHandler):
             if not person:
                 self.send_error(404)
                 return
-            dates = [d for d, status in db.get_availability().get(person, {}).items() if status == "free"]
-            body = ics.build_ics(person, dates).encode("utf-8")
+            days = list(db.get_availability().get(person, {}).items())
+            body = ics.build_ics(person, days).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/calendar; charset=utf-8")
             self.send_header("Content-Length", len(body))

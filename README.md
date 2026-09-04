@@ -1,6 +1,6 @@
 # Bonne journée
 
-App privée pour Zoé (Z) et Noé (N) : journal de bonnes/mauvaises journées + calendrier des disponibilités. Installable comme une PWA sur iPhone (Ajouter à l'écran d'accueil) et sur Windows (bouton "Installer" de Chrome/Edge), avec notifications push.
+App privée pour Zoé (Z) et Noé (N) : journal de bonnes/mauvaises journées + calendrier des disponibilités (tap sur un jour = dispo toute la journée, appui long = activité le soir mais nuit ensemble possible). Installable comme une PWA sur iPhone (Ajouter à l'écran d'accueil) et sur Windows (bouton "Installer" de Chrome/Edge), avec notifications push.
 
 ## Lancer en local
 
