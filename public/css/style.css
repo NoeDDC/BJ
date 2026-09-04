@@ -75,6 +75,16 @@ html, body {
 body {
   overflow: hidden;
   touch-action: manipulation;
+  /* App-like feel: a long press must never start a text selection or show
+     the iOS callout (the calendar uses the long press as a gesture). Text
+     stays selectable only where it is meant to be typed or copied. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea, .cal-subscribe-hint {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 body::before {
@@ -451,8 +461,7 @@ footer {
 .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
 .cal-weekdays span { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.08em; color: var(--muted); }
 
-/* no text selection / callout on long press (the long press is a gesture here) */
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 
 .day-cell {
   position: relative;
