@@ -25,6 +25,7 @@
 <div id="appContent" class="page">
 
   <header>
+    <button id="riddleBtn" class="riddle-btn" type="button" onclick="openRiddle()" aria-label="Énigme du jour" title="Énigme du jour">🧩</button>
     <h1>Bonne journée</h1>
     <div class="header-bar">
       <button id="styleToggle" class="notif-icon-btn" onclick="toggleStylePicker()" aria-label="Changer de style" title="Changer de style">🎨</button>
@@ -217,6 +218,13 @@
     <span class="popup-dot" id="popup-dot"></span>
     <span class="popup-accent" id="popup-accent"></span>
     <p class="popup-msg" id="popup-msg"></p>
+    <div class="riddle-form" id="riddleForm">
+      <input type="text" id="riddleInput" class="riddle-input" placeholder="Ta réponse…" maxlength="40"
+             autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+             enterkeyhint="done" onkeydown="if(event.key==='Enter') submitRiddle()" />
+      <button type="button" class="riddle-send" id="riddleSend" onclick="submitRiddle()" aria-label="Valider ma réponse">→</button>
+    </div>
+    <div class="riddle-note" id="riddleNote"></div>
     <div class="popup-rule"></div>
     <button class="popup-close" onclick="hidePopup()">Fermer</button>
   </div>

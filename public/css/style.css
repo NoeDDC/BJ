@@ -114,6 +114,7 @@ body::before {
    swatches and the notification toggle side by side ── */
 header {
   flex: 0 0 auto;
+  position: relative;   /* ancre le bouton énigme en haut à gauche */
   text-align: center;
   padding: calc(0.55rem + env(safe-area-inset-top, 0px)) 0.75rem 0.5rem;
 }
@@ -378,9 +379,12 @@ footer {
   transition: opacity .25s ease;
 }
 .popup-overlay.show { opacity: 1; pointer-events: all; }
+/* clavier ouvert : le popup remonte au lieu de rester centré derrière lui */
+.popup-overlay.typing { align-items: flex-start; padding-top: calc(1.2rem + env(safe-area-inset-top, 0px)); }
 .popup {
   position: relative;
   width: 100%; max-width: 360px;
+  max-height: 88%; overflow-y: auto;   /* l'énigme + 3 réponses restent lisibles sur petit écran */
   background: var(--paper);
   border: 1px solid var(--rule);
   border-radius: 16px;
@@ -399,8 +403,82 @@ footer {
   background: none; border: none; cursor: pointer; padding: 0.5rem 1rem; text-transform: uppercase;
 }
 .popup-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-bottom: 0.8rem; }
+
+/* ── énigme : on tape sa réponse ── */
+.riddle-form { display: none; align-items: center; gap: 0.5rem; margin-top: 1.2rem; }
+.riddle-form.show { display: flex; }
+.riddle-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: rgba(255,255,255,0.6);
+  color: var(--ink);
+  padding: 0.62rem 1rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1rem;          /* 16px minimum, sinon iOS zoome en arrivant dans le champ */
+  text-align: center;
+  outline: none;
+  transition: border-color .15s, background .15s;
+}
+.riddle-input:focus { border-color: var(--ink); }
+/* trouvée : le champ devient la réponse, en doré */
+.riddle-input:disabled {
+  opacity: 1;
+  font-weight: 500;
+  border-color: var(--gold);
+  background: rgba(201,150,46,0.2);
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+}
+.riddle-send {
+  flex: 0 0 auto;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-size: 1.15rem;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s, opacity .15s;
+}
+.riddle-send:active { transform: scale(0.9); }
+.riddle-send:disabled { opacity: 0.3; }
+
+/* retour sous les choix : « réessaie », ou la félicitation une fois trouvée */
+.riddle-note { min-height: 1.15em; margin-top: 0.9rem; font-style: italic; font-size: 0.88rem; color: var(--muted); }
+.riddle-note.ok { font-style: normal; font-weight: 500; color: var(--gold); }
+
+/* bouton « énigme du jour » : visible seulement une fois la journée validée */
+.riddle-btn {
+  display: none;
+  position: absolute;
+  left: 0.75rem;
+  top: calc(0.55rem + env(safe-area-inset-top, 0px));
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 1rem;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s, background .15s, border-color .15s;
+}
+.riddle-btn.show { display: flex; }
+.riddle-btn:active { transform: scale(0.9); }
+.riddle-btn.solved { border-color: var(--gold); background: rgba(201,150,46,0.2); }
+
+/* ── confettis (bonne réponse) ── */
+.confetti-canvas { position: fixed; inset: 0; z-index: 150; pointer-events: none; }
 .dot-good-z { background: var(--z); } .dot-bad-z { background: var(--z-light); border: 1px solid var(--z2); }
 .dot-good-n { background: var(--n); } .dot-bad-n { background: var(--n-light); border: 1px solid var(--n2); }
+.dot-riddle { background: var(--gold); }
 
 /* ── bottom nav ──
    A flex child at the bottom of .page rather than a position:fixed overlay:
@@ -670,4 +748,5 @@ footer {
    breathing room where the status bar / notch used to be visually implied ── */
 @media (display-mode: standalone) {
   header { padding-top: calc(0.9rem + env(safe-area-inset-top, 0px)); }
+  .riddle-btn { top: calc(0.9rem + env(safe-area-inset-top, 0px)); }
 }

@@ -93,6 +93,8 @@ Deux lenteurs restent liées à l'hébergement et ne se corrigent pas dans le co
 
 Au premier démarrage, une paire de clés VAPID est générée et sauvegardée à côté de la base de données (`vapid_private_key.pem`, sur le même volume persistant que `DB`) — elle ne doit **jamais** être commitée ni régénérée en prod, sinon tous les abonnements existants deviennent invalides.
 
+Ajouter une bonne journée ouvre l'énigme du jour : la réponse se tape dans un champ. La bonne réponse déclenche des confettis ; une mauvaise le dit et laisse réessayer autant de fois qu'on veut, sans jamais dévoiler la solution. La comparaison ignore majuscules, accents, ponctuation et article de tête ; pluriels et synonymes acceptés se listent dans `alt`, énigme par énigme. On peut fermer le popup et y revenir par le bouton 🧩 en haut à gauche, qui n'apparaît qu'une fois la journée validée et reste jusqu'à minuit. L'énigme est déduite de la date, donc identique pour Zoé et Noé, et la liste (`RIDDLES` dans `public/js/app.js`, une ligne par énigme) défile en entier avant qu'une énigme ne revienne. La journée est comptée dans tous les cas, l'énigme ne conditionne rien.
+
 Déclencheur actuel : quand Zoé ou Noé ajoute une bonne ou une mauvaise journée dans le Journal, l'autre reçoit une notification (si il/elle a activé le bouton "Activer les notifications" dans l'app). Chacun peut désactiver ses propres notifications à tout moment via ce même bouton.
 
 Ça nécessite HTTPS en production (le navigateur bloque les notifications push en HTTP simple, `localhost` excepté).

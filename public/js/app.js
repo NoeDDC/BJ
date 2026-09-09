@@ -151,13 +151,280 @@ const MSGS = {
 
 function pickMsg(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
 
+/* ══════════════════ ÉNIGMES (bonnes journées seulement) ══════════════════
+   Ajouter une bonne journée ouvre une petite énigme à trois choix. Bonne
+   réponse : des confettis. Mauvaise réponse : la solution, en douceur. Dans
+   les deux cas la journée est déjà comptée — l'énigme est un bonus, jamais
+   une condition. Pour en ajouter une, une ligne suffit : la bonne réponse
+   dans `a`, deux leurres dans `w`. */
+const RIDDLES = [
+  { q: "Je suis toujours devant toi, pourtant tu ne me verras jamais. Qui suis-je ?",
+    a: "demain",        alt: ["l'avenir", "le futur", "le lendemain"] },
+  { q: "Qu'est-ce qui se brise dès qu'on le prononce ?",
+    a: "le silence",    alt: [] },
+  { q: "Je monte et je descends sans jamais bouger. Qui suis-je ?",
+    a: "un escalier",   alt: ["les escaliers", "les marches"] },
+  { q: "J'ai des dents mais je ne mords jamais. Qui suis-je ?",
+    a: "un peigne",     alt: ["les peignes", "un râteau"] },
+  { q: "Je n'ai pas de bouche et pourtant je te réponds toujours. Qui suis-je ?",
+    a: "l'écho",        alt: ["les échos"] },
+  { q: "Plus j'en fais, plus j'en laisse derrière moi. Qu'est-ce que c'est ?",
+    a: "des pas",       alt: ["un pas", "des empreintes", "des traces", "des traces de pas"] },
+  { q: "C'est à toi, mais les autres s'en servent bien plus que toi. Qu'est-ce que c'est ?",
+    a: "ton prénom",    alt: ["ton nom"] },
+  { q: "J'ai un cou mais pas de tête. Qui suis-je ?",
+    a: "une bouteille", alt: ["les bouteilles", "un flacon"] },
+  { q: "J'ai des aiguilles mais je ne pique jamais. Qui suis-je ?",
+    a: "une horloge",   alt: ["les horloges", "une montre", "une pendule", "un réveil"] },
+  { q: "Deux personnes peuvent le partager, mais il ne se divise jamais. Qu'est-ce que c'est ?",
+    a: "un secret",     alt: ["les secrets"] },
+  { q: "Plus on le partage, plus il grandit. Qu'est-ce que c'est ?",
+    a: "le bonheur",    alt: ["l'amour", "la joie", "le savoir", "la connaissance"] },
+];
+
+const RIDDLE_OK    = ["Bravo 🎉", "Exactement.", "C'était bien ça.", "Joli.", "Sans hésiter."];
+const RIDDLE_RETRY = ["Pas tout à fait. Réessaie.", "Non, retente ta chance.", "Raté. Une autre idée ?", "Pas encore. Encore un essai ?"];
+const RIDDLE_STATE_KEY = 'bj_riddle_day';
+
+/* On tape sa réponse, donc la comparaison doit être indulgente : majuscules,
+   accents, ponctuation, espaces en trop et article de tête sont ignorés.
+   « L'Écho ! », « echo » et « un écho » valent donc tous « l'écho ». Le pluriel
+   et les synonymes, eux, sont listés dans `alt` énigme par énigme. */
+function normalizeAnswer(s) {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')      // accents
+    .replace(/[\u2018\u2019\u02bc`]/g, "'")               // apostrophes typographiques
+    .replace(/[^a-z0-9']+/g, ' ')                          // ponctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(?:[ldcjmnst]'|(?:le|la|les|un|une|des|du|de|mon|ma|mes|ton|ta|tes|son|sa|ses|au|aux) )+/, '')
+    .trim();
+}
+
+function todayStr() {
+  const d = new Date();
+  return dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/* L'énigme du jour se déduit de la date : Zoé et Noé tombent sur la même, elle
+   ne change pas si on referme et qu'on rouvre, et la liste défile en entier
+   avant qu'une énigme ne revienne. */
+function riddleOfTheDay() {
+  const day = Math.floor(Date.parse(todayStr() + 'T00:00:00Z') / 86400000);
+  return RIDDLES[((day % RIDDLES.length) + RIDDLES.length) % RIDDLES.length];
+}
+
+/* Deux drapeaux, remis à zéro à chaque nouveau jour : la journée a-t-elle été
+   validée (le bouton énigme n'apparaît qu'ensuite) et l'énigme trouvée. */
+function riddleState() {
+  const today = todayStr();
+  try {
+    const s = JSON.parse(localStorage.getItem(RIDDLE_STATE_KEY) || 'null');
+    if (s && s.date === today) return { date: today, unlocked: !!s.unlocked, solved: !!s.solved };
+  } catch(e) {}
+  return { date: today, unlocked: false, solved: false };
+}
+
+function saveRiddleState(changes) {
+  const s = Object.assign(riddleState(), changes);
+  try { localStorage.setItem(RIDDLE_STATE_KEY, JSON.stringify(s)); } catch(e) {}
+  updateRiddleButton();
+  return s;
+}
+
+function updateRiddleButton() {
+  const btn = document.getElementById('riddleBtn');
+  if (!btn) return;
+  const s = riddleState();
+  btn.classList.toggle('show', s.unlocked);     // rien tant que la journée n'est pas validée
+  btn.classList.toggle('solved', s.solved);
+  const label = s.solved ? 'Énigme du jour (trouvée)' : 'Énigme du jour';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+}
+
+/* ── confettis ── */
+function launchConfetti() {
+  // respecte le réglage système "réduire les animations"
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const old = document.querySelector('.confetti-canvas');
+  if (old) old.remove();
+
+  const w = window.innerWidth, h = window.innerHeight;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'confetti-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const styles = getComputedStyle(document.body);
+  const colors = ['--z', '--z2', '--n', '--n2', '--gold']
+    .map(v => styles.getPropertyValue(v).trim())
+    .filter(Boolean);
+
+  const pieces = Array.from({ length: 90 }, () => ({
+    x: Math.random() * w,
+    y: -20 - Math.random() * h * 0.6,          // échelonnés au-dessus de l'écran
+    vx: (Math.random() - 0.5) * 1.4,
+    vy: 1.8 + Math.random() * 2.4,
+    size: 5 + Math.random() * 6,
+    rot: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.26,
+    color: colors[Math.floor(Math.random() * colors.length)] || '#C9962E',
+  }));
+
+  const FADE_AT = 2600, END = 3800;
+  let start = null;
+  function frame(ts) {
+    if (start === null) start = ts;
+    const elapsed = ts - start;
+    ctx.clearRect(0, 0, w, h);
+    let onScreen = 0;
+    for (const p of pieces) {
+      p.vy += 0.02;                                     // gravité
+      p.vx += Math.sin((p.y + p.x) / 60) * 0.02;        // dérive latérale
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (p.y < h + 30) onScreen++;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = elapsed > FADE_AT ? Math.max(0, 1 - (elapsed - FADE_AT) / (END - FADE_AT)) : 1;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+    }
+    if (onScreen && elapsed < END) requestAnimationFrame(frame);
+    else canvas.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
 /* ── popup ── */
 let popupTimer = null;
+
+/* person vaut 'z' ou 'n' quand l'énigme suit une bonne journée, null quand on
+   la rouvre depuis le bouton du haut. */
+function renderRiddle(person) {
+  const dot    = document.getElementById('popup-dot');
+  const accent = document.getElementById('popup-accent');
+  const msg    = document.getElementById('popup-msg');
+  const box    = document.getElementById('riddleForm');
+  const input  = document.getElementById('riddleInput');
+  const send   = document.getElementById('riddleSend');
+  const note   = document.getElementById('riddleNote');
+  const riddle = riddleOfTheDay();
+  const solved = riddleState().solved;
+
+  dot.className      = 'popup-dot ' + (person ? 'dot-good-' + person : 'dot-riddle');
+  accent.textContent = person
+    ? (person === 'z' ? 'Z · bonne journée' : 'N · bonne journée')
+    : (solved ? 'énigme du jour · trouvée' : 'énigme du jour');
+  msg.textContent    = riddle.q;   // la question reste affichée pendant les essais
+
+  // Pas de focus automatique : le clavier surgirait juste après la tape sur
+  // « + ». On touche le champ quand on est prêt à répondre.
+  box.classList.add('show');
+  input.value    = solved ? riddle.a : '';
+  input.disabled = solved;
+  send.disabled  = solved;
+
+  note.className   = 'riddle-note' + (solved ? ' ok' : '');
+  note.textContent = solved ? 'Déjà trouvée aujourd\'hui.' : '';
+
+  document.getElementById('overlay').classList.add('show');
+  if (popupTimer) clearTimeout(popupTimer);   // aucune fermeture auto : on prend son temps
+  popupTimer = null;
+}
+
+/* Mauvaise réponse : on le dit et on laisse réessayer, autant de fois qu'on
+   veut, dans la foulée ou en rouvrant l'énigme plus tard. La réponse n'est
+   jamais dévoilée tant qu'elle n'a pas été trouvée. */
+function submitRiddle() {
+  const input = document.getElementById('riddleInput');
+  const note  = document.getElementById('riddleNote');
+  if (input.disabled) return;
+
+  const given = normalizeAnswer(input.value);
+  if (!given) { input.focus(); return; }
+
+  const riddle   = riddleOfTheDay();
+  const accepted = [riddle.a].concat(riddle.alt || []).map(normalizeAnswer);
+
+  if (accepted.indexOf(given) === -1) {
+    note.className   = 'riddle-note';
+    note.textContent = pickMsg(RIDDLE_RETRY);
+    input.select();                    // prêt à retenter sans tout réeffacer
+    return;
+  }
+
+  input.value    = riddle.a;           // on réaffiche la forme « propre »
+  input.disabled = true;
+  document.getElementById('riddleSend').disabled = true;
+  input.blur();                        // referme le clavier pour laisser voir les confettis
+  note.className   = 'riddle-note ok';
+  note.textContent = pickMsg(RIDDLE_OK);
+
+  saveRiddleState({ solved: true });
+  launchConfetti();
+  if (popupTimer) clearTimeout(popupTimer);
+  popupTimer = setTimeout(hidePopup, 3600);
+}
+
+/* Clavier ouvert : le popup remonte, sinon il reste centré derrière le clavier.
+   On ne réagit pas au focus mais au rétrécissement réel de la fenêtre : bouger
+   le popup entre l'appui et le relâchement ferait atterrir la tape à côté. */
+function updatePopupForKeyboard() {
+  const overlay = document.getElementById('overlay');
+  const vv = window.visualViewport;
+  const keyboardOpen = !!vv && isTyping() && (window.innerHeight - vv.height) > 120;
+  overlay.classList.toggle('typing', overlay.classList.contains('show') && keyboardOpen);
+}
+
+/* Fermeture en touchant à côté : seulement si l'appui ET le relâchement ont eu
+   lieu sur le fond. Sinon un décalage de mise en page, ou un glissement en
+   sélectionnant du texte, refermait le popup par accident. */
+let overlayPressStartedOutside = false;
+
+function initRiddleInput() {
+  const overlay = document.getElementById('overlay');
+  const input   = document.getElementById('riddleInput');
+  overlay.addEventListener('pointerdown', e => { overlayPressStartedOutside = (e.target === overlay); });
+  if (input) input.addEventListener('blur', () => overlay.classList.remove('typing'));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', updatePopupForKeyboard);
+}
+
+/* bouton « énigme du jour », en haut à gauche */
+function openRiddle() {
+  if (!riddleState().unlocked) return;
+  renderRiddle(null);
+}
 
 function showPopup(person, type, delta) {
   const dot    = document.getElementById('popup-dot');
   const accent = document.getElementById('popup-accent');
   const msg    = document.getElementById('popup-msg');
+  const box    = document.getElementById('riddleForm');
+  const note   = document.getElementById('riddleNote');
+  const input  = document.getElementById('riddleInput');
+  box.classList.remove('show');       // remet à zéro : champ masqué et vide
+  input.value = '';
+  input.disabled = false;
+  document.getElementById('riddleSend').disabled = false;
+  note.className = 'riddle-note';
+  note.textContent = '';
+
+  // Ajouter une bonne journée débloque l'énigme du jour et l'ouvre. Si elle a
+  // déjà été trouvée, on repasse simplement au message habituel.
+  if (delta > 0 && type === 'g' && RIDDLES.length) {
+    const s = saveRiddleState({ unlocked: true });
+    if (!s.solved) { renderRiddle(person); return; }
+  }
 
   let pool, dotClass, accentText;
   if (delta < 0) {
@@ -184,12 +451,16 @@ function showPopup(person, type, delta) {
 }
 
 function hidePopup() {
-  document.getElementById('overlay').classList.remove('show');
+  const input = document.getElementById('riddleInput');
+  if (input) input.blur();            // le clavier se referme avec le popup
+  document.getElementById('overlay').classList.remove('show', 'typing');
   if (popupTimer) { clearTimeout(popupTimer); popupTimer = null; }
 }
 
 function closePopup(e) {
-  if (e.target === document.getElementById('overlay')) hidePopup();
+  const outside = e.target === document.getElementById('overlay') && overlayPressStartedOutside;
+  overlayPressStartedOutside = false;
+  if (outside) hidePopup();
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hidePopup(); });
@@ -808,11 +1079,14 @@ function refreshActiveView() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   refreshActiveView();
+  updateRiddleButton();          // minuit a pu passer pendant que l'app dormait
   setTimeout(healViewport, 200);
 });
 window.addEventListener('pageshow', e => { if (e.persisted) refreshActiveView(); });
 
 /* ── init ── */
+initRiddleInput();
+updateRiddleButton();
 initCalendarGestures();
 load();
 loadAvailability();
