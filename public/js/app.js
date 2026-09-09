@@ -159,32 +159,44 @@ function pickMsg(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
    dans `a`, deux leurres dans `w`. */
 const RIDDLES = [
   { q: "Je suis toujours devant toi, pourtant tu ne me verras jamais. Qui suis-je ?",
-    a: "demain",        alt: ["l'avenir", "le futur", "le lendemain"] },
+    a: "demain",        alt: ["l'avenir", "le futur", "le lendemain"],
+    hint: "On remet souvent les choses à ce moment-là." },
   { q: "Qu'est-ce qui se brise dès qu'on le prononce ?",
-    a: "le silence",    alt: [] },
+    a: "le silence",    alt: [],
+    hint: "En classe, on te demandait de le garder." },
   { q: "Je monte et je descends sans jamais bouger. Qui suis-je ?",
-    a: "un escalier",   alt: ["les escaliers", "les marches"] },
+    a: "un escalier",   alt: ["les escaliers", "les marches"],
+    hint: "On les prend quand l'ascenseur est en panne." },
   { q: "J'ai des dents mais je ne mords jamais. Qui suis-je ?",
-    a: "un peigne",     alt: ["les peignes", "un râteau"] },
+    a: "un peigne",     alt: ["les peignes", "un râteau"],
+    hint: "T'en as cherché un chez moi, t'avais les nœuds dans les cheveux." },
   { q: "Je n'ai pas de bouche et pourtant je te réponds toujours. Qui suis-je ?",
-    a: "l'écho",        alt: ["les échos"] },
+    a: "l'écho",        alt: ["les échos"],
+    hint: "Crie dans la montagne, il te renvoie tes mots." },
   { q: "Plus j'en fais, plus j'en laisse derrière moi. Qu'est-ce que c'est ?",
-    a: "des pas",       alt: ["un pas", "des empreintes", "des traces", "des traces de pas"] },
+    a: "des pas",       alt: ["un pas", "des empreintes", "des traces", "des traces de pas"],
+    hint: "Sur le sable, on les voit encore longtemps après." },
   { q: "C'est à toi, mais les autres s'en servent bien plus que toi. Qu'est-ce que c'est ?",
-    a: "ton prénom",    alt: ["ton nom"] },
+    a: "ton prénom",    alt: ["ton nom"],
+    hint: "On le dit chaque fois qu'on t'appelle." },
   { q: "J'ai un cou mais pas de tête. Qui suis-je ?",
-    a: "une bouteille", alt: ["les bouteilles", "un flacon"] },
+    a: "une bouteille", alt: ["les bouteilles", "un flacon"],
+    hint: "On lui met un bouchon." },
   { q: "J'ai des aiguilles mais je ne pique jamais. Qui suis-je ?",
-    a: "une horloge",   alt: ["les horloges", "une montre", "une pendule", "un réveil"] },
+    a: "une horloge",   alt: ["les horloges", "une montre", "une pendule", "un réveil"],
+    hint: "La grande et la petite tournent toute la journée." },
   { q: "Deux personnes peuvent le partager, mais il ne se divise jamais. Qu'est-ce que c'est ?",
-    a: "un secret",     alt: ["les secrets"] },
+    a: "un secret",     alt: ["les secrets"],
+    hint: "On le garde, et on ne le confie qu'à une seule personne." },
   { q: "Plus on le partage, plus il grandit. Qu'est-ce que c'est ?",
-    a: "le bonheur",    alt: ["l'amour", "la joie", "le savoir", "la connaissance"] },
+    a: "le bonheur",    alt: ["l'amour", "la joie", "le savoir", "la connaissance"],
+    hint: "C'est à peu près ce que cette app essaie de compter." },
 ];
 
 const RIDDLE_OK    = ["Bravo 🎉", "Exactement.", "C'était bien ça.", "Joli.", "Sans hésiter."];
 const RIDDLE_RETRY = ["Pas tout à fait. Réessaie.", "Non, retente ta chance.", "Raté. Une autre idée ?", "Pas encore. Encore un essai ?"];
 const RIDDLE_STATE_KEY = 'bj_riddle_day';
+const HINT_AFTER_TRIES = 2;   // l'indice s'ouvre après deux tentatives manquées
 
 /* On tape sa réponse, donc la comparaison doit être indulgente : majuscules,
    accents, ponctuation, espaces en trop et article de tête sont ignorés.
@@ -221,9 +233,11 @@ function riddleState() {
   const today = todayStr();
   try {
     const s = JSON.parse(localStorage.getItem(RIDDLE_STATE_KEY) || 'null');
-    if (s && s.date === today) return { date: today, unlocked: !!s.unlocked, solved: !!s.solved };
+    if (s && s.date === today) {
+      return { date: today, unlocked: !!s.unlocked, solved: !!s.solved, tries: s.tries | 0 };
+    }
   } catch(e) {}
-  return { date: today, unlocked: false, solved: false };
+  return { date: today, unlocked: false, solved: false, tries: 0 };
 }
 
 function saveRiddleState(changes) {
@@ -337,6 +351,11 @@ function renderRiddle(person) {
   note.className   = 'riddle-note' + (solved ? ' ok' : '');
   note.textContent = solved ? 'Déjà trouvée aujourd\'hui.' : '';
 
+  const hintEl = document.getElementById('riddleHint');
+  hintEl.textContent = '';
+  hintEl.classList.remove('show');
+  updateHintAvailability();
+
   document.getElementById('overlay').classList.add('show');
   if (popupTimer) clearTimeout(popupTimer);   // aucune fermeture auto : on prend son temps
   popupTimer = null;
@@ -359,6 +378,8 @@ function submitRiddle() {
   if (accepted.indexOf(given) === -1) {
     note.className   = 'riddle-note';
     note.textContent = pickMsg(RIDDLE_RETRY);
+    saveRiddleState({ tries: riddleState().tries + 1 });
+    updateHintAvailability();          // au 2e raté, le bouton indice apparaît
     input.select();                    // prêt à retenter sans tout réeffacer
     return;
   }
@@ -371,6 +392,7 @@ function submitRiddle() {
   note.textContent = pickMsg(RIDDLE_OK);
 
   saveRiddleState({ solved: true });
+  document.getElementById('riddleHintBtn').classList.remove('show');
   launchConfetti();
   if (popupTimer) clearTimeout(popupTimer);
   popupTimer = setTimeout(hidePopup, 3600);
@@ -399,6 +421,24 @@ function initRiddleInput() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', updatePopupForKeyboard);
 }
 
+/* L'indice n'apparaît qu'après deux tentatives manquées. Les essais sont
+   comptés par appareil, donc rater deux fois n'ouvre pas l'indice de l'autre. */
+function updateHintAvailability() {
+  const st  = riddleState();
+  const btn = document.getElementById('riddleHintBtn');
+  const ready = st.tries >= HINT_AFTER_TRIES && !st.solved && !!riddleOfTheDay().hint;
+  btn.classList.toggle('show', ready);
+}
+
+function revealHint() {
+  const hint = riddleOfTheDay().hint;
+  if (!hint) return;
+  const el = document.getElementById('riddleHint');
+  el.textContent = hint;
+  el.classList.add('show');
+  document.getElementById('riddleHintBtn').classList.remove('show');
+}
+
 /* bouton « énigme du jour », en haut à gauche */
 function openRiddle() {
   if (!riddleState().unlocked) return;
@@ -418,6 +458,10 @@ function showPopup(person, type, delta) {
   document.getElementById('riddleSend').disabled = false;
   note.className = 'riddle-note';
   note.textContent = '';
+  document.getElementById('riddleHintBtn').classList.remove('show');
+  const hintEl = document.getElementById('riddleHint');
+  hintEl.classList.remove('show');
+  hintEl.textContent = '';
 
   // Ajouter une bonne journée débloque l'énigme du jour et l'ouvre. Si elle a
   // déjà été trouvée, on repasse simplement au message habituel.

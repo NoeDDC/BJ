@@ -452,6 +452,38 @@ footer {
 .riddle-note { min-height: 1.15em; margin-top: 0.9rem; font-style: italic; font-size: 0.88rem; color: var(--muted); }
 .riddle-note.ok { font-style: normal; font-weight: 500; color: var(--gold); }
 
+/* indice : proposé seulement après deux tentatives manquées */
+.riddle-hint-btn {
+  display: none;
+  margin: 0.85rem auto 0;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.35rem 0.95rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 0.82rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s, border-color .15s, color .15s;
+}
+.riddle-hint-btn.show { display: block; }
+.riddle-hint-btn:active { transform: scale(0.95); border-color: var(--gold); color: var(--ink); }
+.riddle-hint {
+  display: none;
+  margin-top: 0.85rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--gold);
+  background: rgba(201,150,46,0.14);
+  font-style: italic;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.riddle-hint.show { display: block; }
+
 /* bouton « énigme du jour » : visible seulement une fois la journée validée */
 .riddle-btn {
   display: none;
