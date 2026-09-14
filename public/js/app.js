@@ -7,7 +7,7 @@
    remeasure by toggling display on the full-screen root snaps it back; the
    synchronous reflow in between means nothing is painted in the hidden
    state. */
-let maxViewportH = window.innerHeight;
+let maxViewportH = 0;
 let lastViewportW = window.innerWidth;
 
 function isInstalledApp() {
@@ -20,14 +20,39 @@ function isTyping() {
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }
 
+function isIOS() {
+  return /iP(hone|ad|od)/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);   // iPadOS se présente en Mac
+}
+
+/* Hauteur que la fenêtre devrait faire.
+   Se fier au plus grand innerHeight vu depuis le démarrage ne suffit pas : si
+   l'app DÉMARRE déjà rétrécie — ce que provoque un rechargement pendant que le
+   bug est actif, typiquement une mise à jour du service worker — la toute
+   première mesure est déjà la mauvaise, l'écart calculé reste nul et plus rien
+   ne se corrige de la session entière.
+   En app installée iOS avec viewport-fit=cover, la page couvre tout l'écran :
+   screen donne donc la hauteur attendue, juste dès le premier chargement.
+   Réservé à iOS : sur Android innerHeight exclut légitimement les barres
+   système, et cet écart permanent ferait boucler la correction. */
+const MAX_SHRINK = 200;   // au-delà ce n'est plus le bug, mais une fenêtre vraiment plus petite (iPad en Split View)
+
+function expectedViewportH() {
+  const s = window.screen;
+  if (!isIOS() || !s || !s.width || !s.height) return 0;
+  const landscape = window.innerWidth > window.innerHeight;
+  const h = landscape ? Math.min(s.width, s.height) : Math.max(s.width, s.height);
+  return (h - window.innerHeight) > MAX_SHRINK ? 0 : h;
+}
+
 function healViewport() {
   window.scrollTo(0, 0);
   if (!isInstalledApp()) return;                            // the bug only exists in home-screen mode
   if (Math.abs(window.innerWidth - lastViewportW) > 40) {   // rotated: new baseline
     lastViewportW = window.innerWidth;
-    maxViewportH = window.innerHeight;
+    maxViewportH = 0;
   }
-  if (window.innerHeight > maxViewportH) maxViewportH = window.innerHeight;
+  maxViewportH = Math.max(maxViewportH, window.innerHeight, expectedViewportH());
   const shrink = maxViewportH - window.innerHeight;
   if (shrink <= 4) return;
   // A real keyboard takes 200px+. A ~60px deficit while an input still has
@@ -676,6 +701,7 @@ function pad2(n) { return String(n).padStart(2, '0'); }
 function dateKey(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
 
 function switchView(view) {
+  healViewport();   // moment naturel pour rattraper un viewport resté rétréci (ne fait rien s'il est sain)
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + view).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
@@ -1369,6 +1395,13 @@ initShopping();
 load();
 loadAvailability();
 initPush();
+
+/* L'app a pu être lancée — ou rechargée par une mise à jour du service
+   worker — alors que le viewport était déjà rétréci : on corrige d'emblée,
+   sans attendre un premier clavier. Deux passes, iOS se stabilise parfois
+   après coup. */
+healViewport();
+setTimeout(healViewport, 400);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
