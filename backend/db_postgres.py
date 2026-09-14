@@ -21,7 +21,10 @@ import time
 import psycopg2
 import psycopg2.extensions
 
-from .constants import DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, VALID_PERSONS, VALID_STATUSES
+from .constants import (
+    DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, SHOP_KEEP_HOURS, SHOP_SUGGESTIONS,
+    VALID_PERSONS, VALID_STATUSES, clean_shopping_texts,
+)
 
 _dsn = None
 
@@ -156,6 +159,25 @@ def init_db(database_url):
             person TEXT NOT NULL,
             text TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )""")
+        # `label` = la forme minuscule de `text`, calculée en Python (voir
+        # clean_shopping_texts) : c'est elle qui repère les doublons, à
+        # l'identique des deux côtés — le lower() de SQLite ne connaît que
+        # l'ASCII, celui de Postgres non.
+        cur.execute("""CREATE TABLE IF NOT EXISTS shopping (
+            id SERIAL PRIMARY KEY,
+            text TEXT NOT NULL,
+            label TEXT NOT NULL DEFAULT '',
+            added_by TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            checked_by TEXT,
+            checked_at TIMESTAMPTZ
+        )""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS shopping_history (
+            label TEXT PRIMARY KEY,
+            text TEXT NOT NULL,
+            uses INTEGER NOT NULL DEFAULT 0,
+            last_used TIMESTAMPTZ NOT NULL DEFAULT now()
         )""")
         for k in KEYS:
             cur.execute("INSERT INTO counters (id, val) VALUES (%s, 0) ON CONFLICT (id) DO NOTHING", (k,))
@@ -390,3 +412,79 @@ def delete_note(person, note_id):
     if person not in VALID_PERSONS:
         return
     _run(lambda cur: cur.execute("DELETE FROM notes WHERE id=%s AND person=%s", (note_id, person)))
+
+
+# ── liste de courses ─────────────────────────────────────────────────
+def get_shopping_board():
+    """Articles à prendre + ceux cochés depuis moins de SHOP_KEEP_HOURS, et les
+    raccourcis les plus utilisés, sur une seule connexion. La lecture sert aussi
+    de ménage : c'est la seule chose qui arrive assez souvent, l'app n'a pas de
+    tâche planifiée."""
+    def q(cur):
+        cur.execute(
+            "DELETE FROM shopping WHERE checked_at IS NOT NULL "
+            "AND checked_at < now() - make_interval(hours => %s)",
+            (SHOP_KEEP_HOURS,),
+        )
+        cur.execute(
+            "SELECT id, text, added_by, checked_by, checked_at FROM shopping "
+            "ORDER BY (checked_at IS NOT NULL), checked_at DESC NULLS LAST, id"
+        )
+        items = cur.fetchall()
+        cur.execute(
+            "SELECT text FROM shopping_history ORDER BY uses DESC, last_used DESC LIMIT %s",
+            (SHOP_SUGGESTIONS,),
+        )
+        return items, cur.fetchall()
+    items, suggestions = _run(q)
+    return {
+        "items": [
+            {
+                "id": i, "text": t, "added_by": a or "",
+                "checked_by": cb or None, "checked_at": ca.isoformat() if ca else None,
+            }
+            for i, t, a, cb, ca in items
+        ],
+        "suggestions": [s[0] for s in suggestions],
+    }
+
+
+def add_shopping(person, texts):
+    items = clean_shopping_texts(texts)
+    if person not in VALID_PERSONS or not items:
+        return
+
+    def q(cur):
+        for label, text in items:
+            # déjà sur la liste (et pas encore pris) : on ne crée pas de doublon
+            cur.execute("SELECT 1 FROM shopping WHERE checked_at IS NULL AND label=%s", (label,))
+            if cur.fetchone():
+                continue
+            cur.execute("INSERT INTO shopping (text, label, added_by) VALUES (%s, %s, %s)", (text, label, person))
+            cur.execute(
+                "INSERT INTO shopping_history (label, text, uses, last_used) VALUES (%s, %s, 1, now()) "
+                "ON CONFLICT (label) DO UPDATE SET text = EXCLUDED.text, "
+                "uses = shopping_history.uses + 1, last_used = now()",
+                (label, text),
+            )
+    _run(q)
+
+
+def check_shopping(person, item_id, checked):
+    if checked:
+        if person not in VALID_PERSONS:
+            return
+        # ... AND checked_at IS NULL : recocher un article déjà pris ne relance
+        # pas ses 24 h d'affichage.
+        _run(lambda cur: cur.execute(
+            "UPDATE shopping SET checked_by=%s, checked_at=now() WHERE id=%s AND checked_at IS NULL",
+            (person, item_id),
+        ))
+    else:
+        _run(lambda cur: cur.execute(
+            "UPDATE shopping SET checked_by=NULL, checked_at=NULL WHERE id=%s", (item_id,)
+        ))
+
+
+def delete_shopping(item_id):
+    _run(lambda cur: cur.execute("DELETE FROM shopping WHERE id=%s", (item_id,)))

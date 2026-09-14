@@ -104,3 +104,22 @@ def count_notes(person):
 
 def delete_note(person, note_id):
     return _impl.delete_note(person, note_id)
+
+
+# ── liste de courses ──────────────────────────────────────────────────
+def get_shopping_board():
+    """Articles de la liste (à prendre + cochés il y a moins de 24 h) et
+    raccourcis les plus utilisés — ce que renvoie /api/shopping."""
+    return _impl.get_shopping_board()
+
+
+def add_shopping(person, texts):
+    return _impl.add_shopping(person, texts)
+
+
+def check_shopping(person, item_id, checked):
+    return _impl.check_shopping(person, item_id, checked)
+
+
+def delete_shopping(item_id):
+    return _impl.delete_shopping(item_id)

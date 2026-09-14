@@ -35,7 +35,6 @@
       <button type="button" class="swatch" style="--sw1:#8B3E2F;--sw2:#2B5F6B" data-variant="theme-1" onclick="changeTheme('theme-1')" aria-label="Chaleur du matin"></button>
       <button type="button" class="swatch" style="--sw1:#0D3D66;--sw2:#0E4D5F" data-variant="theme-2" onclick="changeTheme('theme-2')" aria-label="Brise marine"></button>
       <button type="button" class="swatch" style="--sw1:#F8B500;--sw2:#8C3F5C" data-variant="theme-3" onclick="changeTheme('theme-3')" aria-label="Crépuscule doux"></button>
-      <button type="button" class="swatch" style="--sw1:#D011A7;--sw2:#10E9C3" data-variant="theme-4" onclick="changeTheme('theme-4')" aria-label="Néon secret"></button>
       <button type="button" class="swatch" style="--sw1:#365E42;--sw2:#385A5D" data-variant="theme-5" onclick="changeTheme('theme-5')" aria-label="Forêt calme"></button>
       <button type="button" class="swatch" style="--sw1:#6D2C6D;--sw2:#30475E" data-variant="theme-6" onclick="changeTheme('theme-6')" aria-label="Lavande profonde"></button>
       <button type="button" class="swatch" style="--sw1:#2E2E2E;--sw2:#484848" data-variant="theme-7" onclick="changeTheme('theme-7')" aria-label="Minimalisme papier"></button>
@@ -196,6 +195,28 @@
       <div class="notes-other" id="notesOther"></div>
     </div>
 
+    <!-- ── LISTE DE COURSES ── -->
+    <div id="view-shopping" class="view">
+      <div class="shop-eyebrow">liste de courses</div>
+      <div class="shop-hint">Coche un article quand tu l'as acheté : il reste barré 24 h, puis il s'efface tout seul.</div>
+
+      <div class="shop-add-row">
+        <input type="text" id="shopInput" class="shop-input" placeholder="Lait, pain, œufs…" maxlength="60"
+               enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="sentences"
+               oninput="renderShopSuggestions()" onkeydown="if(event.key==='Enter') addShopItems()" />
+        <button class="shop-add-btn" onclick="addShopItems()" aria-label="Ajouter">＋</button>
+      </div>
+
+      <div class="shop-suggestions" id="shopSuggestions"></div>
+
+      <div class="shop-list" id="shopList"></div>
+
+      <div class="shop-done-wrap" id="shopDoneWrap">
+        <div class="shop-done-head">déjà pris · s'efface après 24 h</div>
+        <div class="shop-done" id="shopDone"></div>
+      </div>
+    </div>
+
   </div>
 
   <nav class="bottom-nav">
@@ -207,6 +228,9 @@
     </button>
     <button class="nav-btn" data-view="notes" onclick="switchView('notes')">
       <span class="nav-icon">💬</span>Discuter
+    </button>
+    <button class="nav-btn" data-view="shopping" onclick="switchView('shopping')">
+      <span class="nav-icon">🛒</span>Courses
     </button>
   </nav>
 

@@ -65,6 +65,13 @@ const state = {
 };
 const MAX_H = 42;
 
+/* Palettes proposées par la barre 🎨. Sert aussi de garde-fou à la lecture :
+   un thème retiré depuis (theme-4) est encore enregistré côté serveur, et
+   sans ça le body porterait une classe sans aucune règle CSS. */
+const THEMES = ['theme-1', 'theme-2', 'theme-3', 'theme-5', 'theme-6',
+                'theme-7', 'theme-8', 'theme-9', 'theme-10'];
+function validTheme(t) { return THEMES.indexOf(t) === -1 ? 'theme-1' : t; }
+
 /* ── streak (stored server-side, so both people see the same running streak) ── */
 function renderStreak(p) {
   const s      = state.streaks[p] || { count: 0, type: null };
@@ -528,7 +535,7 @@ function render() {
   document.getElementById('total-n').textContent = tn + ' journée' + (tn > 1 ? 's' : '');
   document.getElementById('total').textContent   = vals.reduce((a, b) => a + b, 0);
   document.getElementById('running-count').textContent = state.jours_sans_course;
-  document.body.className = state.theme || 'theme-1';
+  document.body.className = validTheme(state.theme);
   document.querySelectorAll('#paletteRow .swatch').forEach(b => b.classList.toggle('active', b.dataset.variant === state.theme));
   const metaTheme = document.querySelector('meta[name="theme-color"]');
   if (metaTheme) {
@@ -590,7 +597,7 @@ async function load() {
     state.z.b = data.zb ?? 0;
     state.n.g = data.ng ?? 0;
     state.n.b = data.nb ?? 0;
-    state.theme = data.theme || 'theme-1';
+    state.theme = validTheme(data.theme);
     state.jours_sans_course = parseInt(data.jours_sans_course || "0") || 0;
     state.streaks = data.streaks || state.streaks;
     render();
@@ -695,6 +702,16 @@ function switchView(view) {
     clearInterval(notesPollTimer);
     notesPollTimer = null;
   }
+
+  if (view === 'shopping') {
+    if (!currentPerson) { showGate(); }
+    loadShopping();
+    if (shopPollTimer) clearInterval(shopPollTimer);
+    shopPollTimer = setInterval(loadShopping, 20000);
+  } else if (shopPollTimer) {
+    clearInterval(shopPollTimer);
+    shopPollTimer = null;
+  }
 }
 
 function showGate() { document.getElementById('personGate').classList.add('show'); }
@@ -709,6 +726,7 @@ function choosePerson(p) {
   updateSubscribeButton();
   loadCalendarLinks();
   loadNotes();
+  loadShopping();
   if (pendingPushToggle) { pendingPushToggle = false; togglePush(); }
 }
 
@@ -1029,6 +1047,220 @@ async function deleteNote(id) {
   renderNotes();
 }
 
+/* ══════════════════ LISTE DE COURSES ══════════════════
+   Liste commune : chacun ajoute ce qui manque, et coche ce qu'il vient
+   d'acheter. Un article coché n'est pas supprimé tout de suite — il reste
+   barré 24 h avec le prénom de qui l'a pris, pour que l'autre le voie avant
+   qu'il ne disparaisse (le ménage se fait côté serveur, à la lecture). */
+
+let shopState = { items: [], suggestions: [] };
+let shopPollTimer = null;
+let shopWrites = 0;   // un rafraîchissement pendant un envoi effacerait l'affichage optimiste
+
+function escapeAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+
+function shopTodo()  { return (shopState.items || []).filter(i => !i.checked_at); }
+function shopDone()  { return (shopState.items || []).filter(i => i.checked_at); }
+function personName(p) { return p === 'z' ? 'Zoé' : (p === 'n' ? 'Noé' : ''); }
+
+/* « il y a 2 h » — un article coché ne vit que 24 h, minutes et heures suffisent */
+function shortAgo(iso) {
+  const t = Date.parse(iso || '');
+  if (!t) return '';
+  const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
+  if (mins < 1)  return "à l'instant";
+  if (mins < 60) return 'il y a ' + mins + ' min';
+  return 'il y a ' + Math.floor(mins / 60) + ' h';
+}
+
+async function loadShopping() {
+  if (shopWrites) return;
+  try {
+    const res = await fetch('/api/shopping');
+    if (!res.ok) throw new Error();
+    shopState = await res.json();
+  } catch(e) {}
+  renderShopping();
+}
+
+function shopItemHtml(item) {
+  const done = !!item.checked_at;
+  const cls  = ['shop-item'];
+  if (done) cls.push('done');
+  if (item.pending) cls.push('pending');
+  const meta = done
+    ? `<span class="shop-meta"><b class="by-${item.checked_by}">${personName(item.checked_by)}</b> · ${shortAgo(item.checked_at)}</span>`
+    : '';
+  const dis = item.pending ? ' disabled' : '';
+  return `
+    <div class="${cls.join(' ')}">
+      <button class="shop-check${done ? ' checked ' + item.checked_by : ''}"
+              onclick="toggleShopItem('${item.id}', ${done ? 'false' : 'true'})"${dis}
+              aria-label="${done ? 'Remettre dans la liste' : 'Marquer comme acheté'}">
+        <span class="shop-box">${done ? '✓' : ''}</span>
+        <span class="shop-labels">
+          <span class="shop-text">${escapeHtml(item.text)}</span>
+          ${meta}
+        </span>
+      </button>
+      <button class="shop-del" onclick="deleteShopItem('${item.id}')" aria-label="Supprimer"${dis}>✕</button>
+    </div>`;
+}
+
+function renderShopping() {
+  const listEl = document.getElementById('shopList');
+  const doneEl = document.getElementById('shopDone');
+  const wrapEl = document.getElementById('shopDoneWrap');
+  if (!listEl) return;
+
+  const todo = shopTodo();
+  const done = shopDone();
+
+  listEl.innerHTML = todo.length
+    ? todo.map(shopItemHtml).join('')
+    : '<div class="shop-empty">Rien à acheter pour l\'instant</div>';
+
+  doneEl.innerHTML = done.map(shopItemHtml).join('');
+  wrapEl.classList.toggle('show', done.length > 0);
+
+  renderShopSuggestions();
+}
+
+/* Les raccourcis reprennent ce qu'on met le plus souvent dans la liste. Tant
+   qu'on n'a rien tapé ils s'affichent tels quels ; dès qu'on tape, ils se
+   filtrent sur le dernier morceau saisi (« la » → « Lait »). */
+function renderShopSuggestions() {
+  const el = document.getElementById('shopSuggestions');
+  if (!el) return;
+  const input = document.getElementById('shopInput');
+  const last  = (input.value || '').split(/[,;]/).pop().trim().toLowerCase();
+  const onList = new Set(shopTodo().map(i => i.text.toLowerCase()));
+  const chips = (shopState.suggestions || [])
+    .filter(s => !onList.has(s.toLowerCase()))
+    .filter(s => !last || s.toLowerCase().includes(last))
+    .slice(0, 8);
+  el.innerHTML = chips.map(s =>
+    `<button class="shop-chip" data-text="${escapeAttr(s)}">${escapeHtml(s)}</button>`
+  ).join('');
+}
+
+function initShopping() {
+  const el = document.getElementById('shopSuggestions');
+  if (!el) return;
+  el.addEventListener('click', e => {
+    const chip = e.target.closest('.shop-chip');
+    if (chip) quickAddShopItem(chip.dataset.text);
+  });
+}
+
+/* Saisie rapide : « lait, pain, œufs » en une fois, le champ se vide et garde
+   le focus pour enchaîner sans refermer le clavier. */
+function addShopItems() {
+  if (!currentPerson) { showGate(); return; }
+  const input = document.getElementById('shopInput');
+  const texts = (input.value || '').split(/[,;\n]/).map(t => t.trim()).filter(Boolean);
+  if (!texts.length) return;
+  input.value = '';
+  input.focus();
+  pushShopItems(texts);
+}
+
+function quickAddShopItem(text) {
+  if (!currentPerson) { showGate(); return; }
+  const input = document.getElementById('shopInput');
+  input.value = '';
+  pushShopItems([text]);
+}
+
+async function pushShopItems(texts) {
+  const onList = new Set(shopTodo().map(i => i.text.toLowerCase()));
+  const fresh = texts.filter(t => {
+    const k = t.toLowerCase();
+    if (onList.has(k)) return false;        // déjà sur la liste
+    onList.add(k);
+    return true;
+  });
+  if (!fresh.length) { renderShopping(); return; }
+
+  const stamp = Date.now();
+  const temps = fresh.map((text, i) => ({
+    id: 'tmp-' + stamp + '-' + i, text, added_by: currentPerson,
+    checked_by: null, checked_at: null, pending: true
+  }));
+  shopState.items = [...(shopState.items || []), ...temps];
+  renderShopping();
+
+  shopWrites++;
+  try {
+    const res = await fetch('/api/shopping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ person: currentPerson, texts: fresh })
+    });
+    if (!res.ok) throw new Error();
+    shopState = await res.json();
+  } catch(e) {
+    const ids = new Set(temps.map(t => t.id));
+    shopState.items = (shopState.items || []).filter(i => !ids.has(i.id));
+  } finally {
+    shopWrites--;
+  }
+  renderShopping();
+}
+
+async function toggleShopItem(id, checked) {
+  if (!currentPerson) { showGate(); return; }
+  if (String(id).startsWith('tmp-')) return;
+
+  const before = shopState.items || [];
+  shopState.items = before.map(i => String(i.id) === String(id)
+    ? Object.assign({}, i, {
+        checked_at: checked ? new Date().toISOString() : null,
+        checked_by: checked ? currentPerson : null,
+      })
+    : i);
+  renderShopping();
+
+  shopWrites++;
+  try {
+    const res = await fetch('/api/shopping/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ person: currentPerson, id: Number(id), checked })
+    });
+    if (!res.ok) throw new Error();
+    shopState = await res.json();
+  } catch(e) {
+    shopState.items = before;
+  } finally {
+    shopWrites--;
+  }
+  renderShopping();
+}
+
+async function deleteShopItem(id) {
+  if (String(id).startsWith('tmp-')) return;
+  const before = shopState.items || [];
+  shopState.items = before.filter(i => String(i.id) !== String(id));
+  renderShopping();
+
+  shopWrites++;
+  try {
+    const res = await fetch('/api/shopping/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: Number(id) })
+    });
+    if (!res.ok) throw new Error();
+    shopState = await res.json();
+  } catch(e) {
+    shopState.items = before;
+  } finally {
+    shopWrites--;
+  }
+  renderShopping();
+}
+
 /* ══════════════════ NOTIFICATIONS PUSH ══════════════════ */
 
 function urlBase64ToUint8Array(base64String) {
@@ -1119,6 +1351,7 @@ function refreshActiveView() {
   const view = activeBtn ? activeBtn.dataset.view : 'journal';
   if (view === 'calendar') loadAvailability().then(() => renderCalendarGrid());
   if (view === 'notes') loadNotes();
+  if (view === 'shopping') loadShopping();
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
@@ -1132,6 +1365,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) refreshActiveView();
 initRiddleInput();
 updateRiddleButton();
 initCalendarGestures();
+initShopping();
 load();
 loadAvailability();
 initPush();

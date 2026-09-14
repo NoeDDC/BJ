@@ -1,6 +1,6 @@
 # Bonne journée
 
-App privée pour Zoé (Z) et Noé (N) : journal de bonnes/mauvaises journées + calendrier des disponibilités (tap sur un jour = dispo toute la journée, appui long = activité le soir mais nuit ensemble possible). Installable comme une PWA sur iPhone (Ajouter à l'écran d'accueil) et sur Windows (bouton "Installer" de Chrome/Edge), avec notifications push.
+App privée pour Zoé (Z) et Noé (N) : journal de bonnes/mauvaises journées + calendrier des disponibilités (tap sur un jour = dispo toute la journée, appui long = activité le soir mais nuit ensemble possible) + liste de courses commune. Installable comme une PWA sur iPhone (Ajouter à l'écran d'accueil) et sur Windows (bouton "Installer" de Chrome/Edge), avec notifications push.
 
 ## Lancer en local
 
@@ -88,6 +88,16 @@ Chaque requête API emprunte une connexion Postgres déjà ouverte (pool dans `b
 Deux lenteurs restent liées à l'hébergement et ne se corrigent pas dans le code :
 - **Render (offre gratuite)** endort le service après 15 min sans trafic : le premier chargement prend alors 30 à 60 s. Une instance payante, ou un cron externe qui appelle `/api/counters` toutes les 10 min, l'évite.
 - **Neon (offre gratuite)** suspend le compute après 5 min d'inactivité : la première requête qui suit prend environ 1 s de plus. Réglable dans Neon → Settings → Compute → « Scale to zero ».
+
+## Liste de courses
+
+Onglet « Courses » : une seule liste, partagée par Zoé et Noé (pas de liste « à moi »/« à toi » comme dans Discuter).
+
+- **Ajouter** : on tape dans le champ et on valide. Plusieurs articles d'un coup en les séparant par une virgule (`lait, pain, œufs`). Le champ se vide et garde le focus, donc le clavier ne se referme pas entre deux articles.
+- **Raccourcis** : sous le champ, les articles le plus souvent mis dans la liste (table `shopping_history`, comptés par usage). Une tape les ajoute. Ils se filtrent au fur et à mesure de la frappe et masquent ce qui est déjà sur la liste.
+- **Cocher** : une tape sur la ligne (rond ou texte) marque l'article comme acheté. Il n'est pas supprimé : il descend dans « déjà pris », barré, avec le prénom de qui l'a pris et depuis combien de temps. Recocher ne relance pas le compteur ; décocher le remet dans la liste.
+- **Les 24 h** : un article coché disparaît définitivement 24 h après avoir été coché (`SHOP_KEEP_HOURS` dans `backend/constants.py`). Le ménage se fait côté serveur à chaque lecture de `/api/shopping` — l'app n'a pas de tâche planifiée, et une lecture arrive bien assez souvent.
+- La liste se rafraîchit toutes les 20 s tant que l'onglet est ouvert, et au retour dans l'app. Un article déjà présent (à la casse près) n'est pas ajouté en double.
 
 ## Notifications push
 

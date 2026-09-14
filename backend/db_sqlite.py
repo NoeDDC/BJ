@@ -3,7 +3,10 @@ import os
 import secrets
 import sqlite3
 
-from .constants import DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, VALID_PERSONS, VALID_STATUSES
+from .constants import (
+    DATE_RE, KEYS, META_KEYS, NOTE_MAX_LEN, SHOP_KEEP_HOURS, SHOP_SUGGESTIONS,
+    VALID_PERSONS, VALID_STATUSES, clean_shopping_texts,
+)
 
 DB_PATH = None  # set once by init_db()
 
@@ -29,6 +32,25 @@ def init_db(db_path):
         person TEXT NOT NULL,
         text TEXT NOT NULL,
         created_at TEXT NOT NULL
+    )""")
+    # `label` = la forme minuscule de `text`, calculée en Python : c'est elle
+    # qui repère les doublons. Le lower() de SQLite ne connaît que l'ASCII
+    # (« PÂTES » resterait « pÂtes »), celui de Postgres non — passer par une
+    # colonne évite que les deux backends se comportent différemment.
+    con.execute("""CREATE TABLE IF NOT EXISTS shopping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        label TEXT NOT NULL DEFAULT '',
+        added_by TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        checked_by TEXT,
+        checked_at TEXT
+    )""")
+    con.execute("""CREATE TABLE IF NOT EXISTS shopping_history (
+        label TEXT PRIMARY KEY,
+        text TEXT NOT NULL,
+        uses INTEGER NOT NULL DEFAULT 0,
+        last_used TEXT NOT NULL
     )""")
     for k in KEYS:
         con.execute("INSERT OR IGNORE INTO counters VALUES (?, 0)", (k,))
@@ -263,6 +285,88 @@ def delete_note(person, note_id):
         return
     con = _connect()
     con.execute("DELETE FROM notes WHERE id=? AND person=?", (note_id, person))
+    con.commit()
+    con.close()
+
+
+# ── liste de courses ─────────────────────────────────────────────────
+def _iso(ts):
+    """SQLite stocke « YYYY-MM-DD HH:MM:SS » en UTC ; le navigateur a besoin
+    d'une date explicitement marquée UTC pour afficher « il y a 2 h »."""
+    return ts.replace(" ", "T") + "Z" if ts else None
+
+
+def get_shopping_board():
+    """Articles à prendre + ceux cochés depuis moins de SHOP_KEEP_HOURS, et les
+    raccourcis les plus utilisés. La lecture sert aussi de ménage : c'est la
+    seule chose qui arrive assez souvent, l'app n'a pas de tâche planifiée."""
+    con = _connect()
+    con.execute(
+        "DELETE FROM shopping WHERE checked_at IS NOT NULL AND checked_at < datetime('now', ?)",
+        (f"-{SHOP_KEEP_HOURS} hours",),
+    )
+    con.commit()
+    rows = con.execute(
+        "SELECT id, text, added_by, checked_by, checked_at FROM shopping "
+        "ORDER BY (checked_at IS NOT NULL), checked_at DESC, id"
+    ).fetchall()
+    suggestions = con.execute(
+        "SELECT text FROM shopping_history ORDER BY uses DESC, last_used DESC LIMIT ?",
+        (SHOP_SUGGESTIONS,),
+    ).fetchall()
+    con.close()
+    return {
+        "items": [
+            {"id": i, "text": t, "added_by": a or "", "checked_by": cb or None, "checked_at": _iso(ca)}
+            for i, t, a, cb, ca in rows
+        ],
+        "suggestions": [s[0] for s in suggestions],
+    }
+
+
+def add_shopping(person, texts):
+    items = clean_shopping_texts(texts)
+    if person not in VALID_PERSONS or not items:
+        return
+    con = _connect()
+    for label, text in items:
+        # déjà sur la liste (et pas encore pris) : on ne crée pas de doublon
+        if con.execute("SELECT 1 FROM shopping WHERE checked_at IS NULL AND label=?", (label,)).fetchone():
+            continue
+        con.execute(
+            "INSERT INTO shopping (text, label, added_by, created_at) VALUES (?, ?, ?, datetime('now'))",
+            (text, label, person),
+        )
+        con.execute(
+            "INSERT INTO shopping_history (label, text, uses, last_used) VALUES (?, ?, 1, datetime('now')) "
+            "ON CONFLICT(label) DO UPDATE SET text=excluded.text, uses=uses+1, last_used=datetime('now')",
+            (label, text),
+        )
+    con.commit()
+    con.close()
+
+
+def check_shopping(person, item_id, checked):
+    con = _connect()
+    if checked:
+        if person not in VALID_PERSONS:
+            con.close()
+            return
+        # ... AND checked_at IS NULL : recocher un article déjà pris ne
+        # relance pas ses 24 h d'affichage.
+        con.execute(
+            "UPDATE shopping SET checked_by=?, checked_at=datetime('now') WHERE id=? AND checked_at IS NULL",
+            (person, item_id),
+        )
+    else:
+        con.execute("UPDATE shopping SET checked_by=NULL, checked_at=NULL WHERE id=?", (item_id,))
+    con.commit()
+    con.close()
+
+
+def delete_shopping(item_id):
+    con = _connect()
+    con.execute("DELETE FROM shopping WHERE id=?", (item_id,))
     con.commit()
     con.close()
 

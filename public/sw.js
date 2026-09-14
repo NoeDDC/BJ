@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bonne-journee-v7';
+const CACHE_NAME = 'bonne-journee-v8';
 const APP_SHELL = [
   '/',
   '/css/style.css',

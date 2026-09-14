@@ -18,6 +18,14 @@ mimetypes.add_type("image/png", ".png")
 PERSON_NAMES = {"z": "Zoé", "n": "Noé"}
 
 
+def _as_int(value):
+    """Row id coming from the client — None when it isn't a usable integer."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _notify_journee_added(person, ttype):
     """Runs on a background thread so the API response is never delayed
     by the outbound push network call."""
@@ -120,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error(400)
                 return
             self._send_json(self._notes_payload(person))
+        elif path == "/api/shopping":
+            self._send_json(db.get_shopping_board())
         elif path == "/api/push/public-key":
             self._send_json({"publicKey": push.get_public_key()})
         elif path == "/api/calendar-links":
@@ -196,13 +206,34 @@ class Handler(BaseHTTPRequestHandler):
             if person not in db.VALID_PERSONS:
                 self.send_error(400)
                 return
-            try:
-                note_id = int(body.get("id"))
-            except (TypeError, ValueError):
-                note_id = None
+            note_id = _as_int(body.get("id"))
             if note_id is not None:
                 db.delete_note(person, note_id)
             self._send_json(self._notes_payload(person))
+
+        elif path == "/api/shopping":
+            person = body.get("person")
+            if person not in db.VALID_PERSONS:
+                self.send_error(400)
+                return
+            db.add_shopping(person, body.get("texts") or body.get("text"))
+            self._send_json(db.get_shopping_board())
+
+        elif path == "/api/shopping/check":
+            person = body.get("person")
+            if person not in db.VALID_PERSONS:
+                self.send_error(400)
+                return
+            item_id = _as_int(body.get("id"))
+            if item_id is not None:
+                db.check_shopping(person, item_id, bool(body.get("checked")))
+            self._send_json(db.get_shopping_board())
+
+        elif path == "/api/shopping/delete":
+            item_id = _as_int(body.get("id"))
+            if item_id is not None:
+                db.delete_shopping(item_id)
+            self._send_json(db.get_shopping_board())
 
         elif path == "/api/push/subscribe":
             sub = body.get("subscription") or {}
