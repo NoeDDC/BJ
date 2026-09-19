@@ -7,8 +7,14 @@
    remeasure by toggling display on the full-screen root snaps it back; the
    synchronous reflow in between means nothing is painted in the hidden
    state. */
-let maxViewportH = 0;
+const MAX_SHRINK   = 200;   // au-delà ce n'est plus le bug, mais une fenêtre vraiment plus petite (iPad en Split View)
+const SCREEN_TRIES = 3;     // voir expectedViewportH : le vrai bug se corrige du premier coup
+const HEAL_COOLDOWN = 250;  // ms — une rafale de resize ne doit pas faire clignoter le shell
+
+let maxSeenH = 0;                  // plus grande hauteur RÉELLEMENT observée : atteignable par construction
 let lastViewportW = window.innerWidth;
+let screenBudget = SCREEN_TRIES;   // essais restants sur la cible déduite de screen
+let lastHealAt = 0;
 
 function isInstalledApp() {
   return window.navigator.standalone === true ||
@@ -34,9 +40,16 @@ function isIOS() {
    En app installée iOS avec viewport-fit=cover, la page couvre tout l'écran :
    screen donne donc la hauteur attendue, juste dès le premier chargement.
    Réservé à iOS : sur Android innerHeight exclut légitimement les barres
-   système, et cet écart permanent ferait boucler la correction. */
-const MAX_SHRINK = 200;   // au-delà ce n'est plus le bug, mais une fenêtre vraiment plus petite (iPad en Split View)
+   système, et cet écart permanent ferait boucler la correction.
 
+   ⚠️ Contrairement au plus grand innerHeight observé, cette cible-là peut être
+   INATTEIGNABLE (l'app ne couvre pas tout à fait l'écran, screen arrondi
+   autrement...). Or masquer/réafficher le shell plein écran provoque
+   lui-même un resize, qui rappelle cette fonction : une cible qu'on
+   n'atteint jamais boucle donc à l'infini et l'app ne finit jamais de
+   charger. D'où SCREEN_TRIES : au bout de quelques échecs on abandonne
+   définitivement cette cible et on retombe sur le plus grand innerHeight
+   observé, qui lui est toujours atteignable. */
 function expectedViewportH() {
   const s = window.screen;
   if (!isIOS() || !s || !s.width || !s.height) return 0;
@@ -50,22 +63,40 @@ function healViewport() {
   if (!isInstalledApp()) return;                            // the bug only exists in home-screen mode
   if (Math.abs(window.innerWidth - lastViewportW) > 40) {   // rotated: new baseline
     lastViewportW = window.innerWidth;
-    maxViewportH = 0;
+    maxSeenH = 0;
+    screenBudget = SCREEN_TRIES;
   }
-  maxViewportH = Math.max(maxViewportH, window.innerHeight, expectedViewportH());
-  const shrink = maxViewportH - window.innerHeight;
+  if (window.innerHeight > maxSeenH) maxSeenH = window.innerHeight;
+
+  const fromScreen = screenBudget > 0 ? expectedViewportH() : 0;
+  const target = Math.max(maxSeenH, fromScreen);
+  const shrink = target - window.innerHeight;
   if (shrink <= 4) return;
   // A real keyboard takes 200px+. A ~60px deficit while an input still has
   // focus means the keyboard was closed with its own hide button, so heal
   // anyway (the input loses focus, which is what the user wanted).
   if (isTyping() && shrink > 120) return;
 
+  const now = Date.now();
+  if (now - lastHealAt < HEAL_COOLDOWN) return;
+  lastHealAt = now;
+
+  // Écart plus grand que ce que la hauteur observée explique : c'est screen
+  // qui l'a créé, donc cette tentative est à sa charge. Quand le budget est
+  // épuisé, expectedViewportH() n'est plus consulté et l'écart disparaît de
+  // lui-même — la correction s'arrête au lieu de boucler.
+  if (shrink > maxSeenH - window.innerHeight) screenBudget--;
+
   const page = document.getElementById('appContent');
+  if (!page) return;
   const view = document.querySelector('.view.active');
   const scrollTop = view ? view.scrollTop : 0;
-  page.style.display = 'none';
-  void page.offsetHeight;
-  page.style.display = '';
+  try {
+    page.style.display = 'none';
+    void page.offsetHeight;
+  } finally {
+    page.style.display = '';   // quoi qu'il arrive, l'app ne reste jamais invisible
+  }
   if (view) view.scrollTop = scrollTop;
 }
 
