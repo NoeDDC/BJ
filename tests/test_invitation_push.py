@@ -3,7 +3,9 @@ notification), Zoé écrit un événement en l'invitant, le message arrive et se
 
     python3 tests/test_invitation_push.py     (wrangler pages dev sur 8788, branche d'essai)
 """
-import base64, http.server, json, os, threading, time, urllib.request
+import base64, http.server, json, os, sys, threading, time, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from session import cookie
 import http_ece
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -29,7 +31,8 @@ endpoint = "http://127.0.0.1:9911/telephone-de-noe"
 
 
 def post(path, body):
-    r = urllib.request.Request(CF + path, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST")
+    h = {"Content-Type": "application/json", "Cookie": cookie(CF, body.get("person") or "z")}
+    r = urllib.request.Request(CF + path, data=json.dumps(body).encode(), headers=h, method="POST")
     return json.load(urllib.request.urlopen(r, timeout=30))
 
 
@@ -57,4 +60,4 @@ finally:
     for e in post("/api/events", {"person": "z", "date": "2030-05-18", "text": "x"}):
         if e["date"].startswith("2030-05"):
             post("/api/events/delete", {"person": e["author"], "id": e["id"]})
-    post("/api/push/unsubscribe", {"endpoint": endpoint})
+    post("/api/push/unsubscribe", {"person": "n", "endpoint": endpoint})

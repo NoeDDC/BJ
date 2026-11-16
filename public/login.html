@@ -111,6 +111,7 @@
     }
     async function connecter(e) {
       e.preventDefault();
+      $('errMdp').textContent = '';
       $('btnMdp').disabled = true;
       try {
         const { ok, d } = await envoyer('/api/auth/login', { person: qui, password: $('mdp').value });
@@ -124,6 +125,7 @@
     async function changer(e) {
       e.preventDefault();
       const a = $('nouveau').value, b = $('nouveau2').value;
+      $('errNouveau').textContent = '';
       if (a !== b) { $('errNouveau').textContent = 'Les deux ne sont pas pareils.'; return; }
       $('btnNouveau').disabled = true;
       try {

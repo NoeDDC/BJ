@@ -5,6 +5,8 @@ Zoé le modifie puis le retire ; les dispos (tap) marchent toujours.
     python3 tests/test_ui_evenements.py        (captures dans tests/captures/)
 """
 import json, os, sys, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from session import cookie
 from playwright.sync_api import sync_playwright
 
 CF = "http://127.0.0.1:8788"
@@ -13,7 +15,8 @@ erreurs = []
 
 
 def api(path):
-    return json.load(urllib.request.urlopen(CF + path))
+    r = urllib.request.Request(CF + path, headers={"Cookie": cookie(CF, "z")})
+    return json.load(urllib.request.urlopen(r))
 
 
 with sync_playwright() as p:
@@ -21,6 +24,8 @@ with sync_playwright() as p:
     iphone = {**p.devices["iPhone 13"]}
     def page_de(qui):
         ctx = nav.new_context(**iphone)
+        nom, val = cookie(CF, qui).split("=", 1)
+        ctx.add_cookies([{"name": nom, "value": val, "url": CF}])
         ctx.add_init_script(f"localStorage.setItem('bj_person', '{qui}')")
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: erreurs.append(f"{qui}: {e}"))

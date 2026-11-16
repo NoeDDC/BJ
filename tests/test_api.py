@@ -5,14 +5,22 @@ tous deux branchés sur la MÊME branche Neon d'essai, puis teste les événemen
     npx wrangler pages dev --port 8788      # et l'ancien : PORT=3011 python3 server.py (branche main)
     python3 tests/test_api.py               # sans l'ancien serveur : seulement les événements
 """
-import json, sys, urllib.error, urllib.request
+import json, os, sys, urllib.error, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 PY, CF = "http://127.0.0.1:3011", "http://127.0.0.1:8788"
 echecs = 0
 
 
+from session import cookie
+
+
 def call(base, path, body=None):
+    h = {"Content-Type": "application/json"}
+    if base == CF:   # la personne vient de la session : on se connecte en tant qu'elle
+        qui = (body or {}).get("person") or ("n" if "person=n" in path else "z")
+        h["Cookie"] = cookie(CF, qui if qui in ("z", "n") else "z")
     r = urllib.request.Request(base + path, data=json.dumps(body).encode() if body is not None else None,
-                               headers={"Content-Type": "application/json"}, method="POST" if body is not None else "GET")
+                               headers=h, method="POST" if body is not None else "GET")
     with urllib.request.urlopen(r, timeout=30) as res:
         txt = res.read().decode()
         return json.loads(txt) if res.headers.get_content_type() == "application/json" else txt
@@ -89,7 +97,6 @@ eid = mien[0]["id"]
 verifie("refus sans texte (400)", status(CF, "/api/events", {"person": "z", "date": "2030-03-07", "text": "  "}) == 400)
 verifie("refus date invalide (400)", status(CF, "/api/events", {"person": "z", "date": "7 mars", "text": "x"}) == 400)
 verifie("refus heure invalide (400)", status(CF, "/api/events", {"person": "z", "date": "2030-03-07", "time": "25:00", "text": "x"}) == 400)
-verifie("refus personne inconnue (400)", status(CF, "/api/events", {"person": "x", "date": "2030-03-07", "text": "x"}) == 400)
 call(CF, "/api/events", {"person": "n", "id": eid, "date": "2030-03-08", "text": "piraté", "invited": False})
 e = [x for x in call(CF, "/api/events") if x["id"] == eid][0]
 verifie("Noé ne modifie pas l'événement de Zoé", e["text"] == "Resto, chez Léa ;" and e["date"] == "2030-03-07")
