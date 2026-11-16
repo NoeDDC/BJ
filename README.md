@@ -1,5 +1,10 @@
 # Bonne journée
 
+> **Depuis le 2026-11-16, l'app tourne sur Cloudflare Pages** : https://bonne-journee.pages.dev
+> (fonctions dans `functions/`, base Neon inchangée). Voir `CLAUDE.md` pour lancer, tester et
+> déployer. La suite de ce fichier décrit l'ancienne version Python hébergée sur Render.
+
+
 App privée pour Zoé (Z) et Noé (N) : journal de bonnes/mauvaises journées + calendrier des disponibilités (tap sur un jour = dispo toute la journée, appui long = activité le soir mais nuit ensemble possible) + liste de courses commune. Installable comme une PWA sur iPhone (Ajouter à l'écran d'accueil) et sur Windows (bouton "Installer" de Chrome/Edge), avec notifications push.
 
 ## Lancer en local
