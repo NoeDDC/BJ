@@ -1,0 +1,11 @@
+# Projet Cloudflare Pages « bonne-journee » : public/ servi tel quel, functions/ pour l'API.
+# Secrets (jamais ici) : DATABASE_URL, VAPID_PUBLIC, VAPID_PRIVATE (wrangler pages secret put).
+name = "bonne-journee"
+pages_build_output_dir = "public"
+compatibility_date = "2025-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# La base Neon est en Virginie (us-east-2) : la fonction s'exécute près d'elle
+# plutôt que près du téléphone, une requête vers Neon coûtant plus qu'un appel.
+[placement]
+mode = "smart"

@@ -5,3 +5,6 @@ __pycache__/
 *.pem
 .venv/
 venv/
+node_modules/
+.wrangler/
+.dev.vars

@@ -171,8 +171,16 @@
       <div class="cal-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
       <div class="cal-grid" id="calGrid"></div>
 
-      <div class="cal-hint">Tape sur un jour : dispo. Appui long : acti le soir, mais dodo possible.</div>
+      <div class="cal-hint">Tape sur un jour : dispo. Appui long : acti le soir, mais dodo possible. ✎ Écrire : un programme, avec ou sans invitation.</div>
       <div class="cal-you" id="calYou"></div>
+
+      <div class="cal-events">
+        <div class="cal-events-head">
+          <span class="cal-events-title" id="calEventsTitle">ce mois-ci</span>
+          <button class="cal-write-btn" onclick="openEventSheet()">✎ Écrire</button>
+        </div>
+        <div class="cal-events-list" id="calEventsList"></div>
+      </div>
 
       <div class="cal-subscribe">
         <button class="cal-subscribe-btn" id="subscribeBtn" onclick="copySubscribeLink()">📋 Copier le lien de dispo</button>
@@ -257,6 +265,25 @@
 </div>
 
 <!-- PERSON GATE -->
+<div class="ev-overlay" id="eventSheet" onclick="if (event.target === this) closeEventSheet()">
+  <div class="ev-card" role="dialog" aria-labelledby="evTitle">
+    <div class="gate-eyebrow">dans le calendrier</div>
+    <h2 class="ev-title" id="evTitle">Écrire quelque chose</h2>
+    <input type="text" id="evText" class="notes-input" placeholder="Resto, train, anniversaire…" maxlength="120" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" />
+    <div class="ev-row">
+      <label class="ev-field">Jour<input type="date" id="evDate" class="notes-input" /></label>
+      <label class="ev-field">Heure (facultatif)<input type="time" id="evTime" class="notes-input" /></label>
+    </div>
+    <label class="ev-invite"><input type="checkbox" id="evInvited" /> <span id="evInviteLabel">Inviter</span></label>
+    <div class="ev-error" id="evError"></div>
+    <div class="ev-actions">
+      <button class="ev-btn ev-del" id="evDelete" onclick="deleteEvent()">Retirer</button>
+      <button class="ev-btn" onclick="closeEventSheet()">Annuler</button>
+      <button class="ev-btn ev-save" id="evSave" onclick="saveEvent()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="gate-overlay" id="personGate">
   <div class="gate-card">
     <div class="gate-eyebrow">pour continuer</div>
