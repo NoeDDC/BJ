@@ -921,6 +921,7 @@ const FR_MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','a
 let currentPerson = localStorage.getItem('bj_person') || null;
 let calYear, calMonth;
 let availability = { z: {}, n: {} };
+let calEvents = [];   // ce que chacun a écrit dans le calendrier (/api/events)
 let calPollTimer = null;
 let notesPollTimer = null;
 let pendingPushToggle = false;
@@ -939,9 +940,9 @@ function switchView(view) {
     renderCalYou();
     updateSubscribeButton();
     loadCalendarLinks();
-    loadAvailability().then(renderCalendar);
+    loadCalendarData().then(renderCalendar);
     if (calPollTimer) clearInterval(calPollTimer);
-    calPollTimer = setInterval(() => { loadAvailability().then(() => renderCalendarGrid()); }, 20000);
+    calPollTimer = setInterval(() => { loadCalendarData().then(() => renderCalendarGrid()); }, 20000);
   } else if (calPollTimer) {
     clearInterval(calPollTimer);
     calPollTimer = null;
@@ -993,6 +994,15 @@ async function loadAvailability() {
     availability = { z: data.z || {}, n: data.n || {} };
   } catch(e) {}
 }
+
+async function loadEvents() {
+  try {
+    const res = await fetch('/api/events');
+    if (res.ok) calEvents = await res.json();
+  } catch(e) {}
+}
+
+function loadCalendarData() { return Promise.all([loadAvailability(), loadEvents()]); }
 
 async function saveAvailability(person, date, status) {
   try {
@@ -1048,6 +1058,8 @@ function renderCalendarGrid(pulseKey) {
     const key = dateKey(calYear, calMonth, d);
     const zs = availability.z[key];
     const ns = availability.n[key];
+    const evs = calEvents.filter(e => e.date === key);
+    const evCls = evs.length ? (evs.some(e => e.invited) || new Set(evs.map(e => e.author)).size > 1 ? 'both' : evs[0].author) : '';
     const both  = zs === 'free' && ns === 'free';              // ★ whole day together
     const night = !both && nightOk(zs) && nightOk(ns);        // ☾ one of us is out in the evening, the night still works
     const cls = ['day-cell'];
@@ -1064,8 +1076,109 @@ function renderCalendarGrid(pulseKey) {
           <span class="day-dot n ${ns || 'none'}"></span>
         </span>
         ${both ? '<span class="day-star">★</span>' : (night ? '<span class="day-moon">☾</span>' : '')}
+        ${evCls ? `<span class="day-ev ${evCls}"></span>` : ''}
       </button>`);
   }
+  renderEventList();
+}
+
+/* ══ ÉVÉNEMENTS ÉCRITS ══
+   Chacun écrit son programme sur un jour (« Resto chez Léa », « Train 18 h »)
+   et choisit d'y inviter l'autre ou non. Les deux voient tout ; seul l'auteur
+   modifie ou retire ce qu'il a écrit. Les dispos (tap, appui long) ne changent pas. */
+const FR_DAYS_SHORT = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+const otherOf = p => (p === 'z' ? 'n' : 'z');
+let editingEventId = null;
+
+function renderEventList() {
+  const list = document.getElementById('calEventsList');
+  if (!list) return;
+  document.getElementById('calEventsTitle').textContent = 'en ' + FR_MONTHS[calMonth];
+  const prefix = `${calYear}-${pad2(calMonth + 1)}-`;
+  const today = new Date();
+  const todayStr = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const items = calEvents.filter(e => e.date.startsWith(prefix));
+  if (!items.length) {
+    list.innerHTML = '<div class="ev-empty">Rien d\'écrit ce mois-ci.</div>';
+    return;
+  }
+  list.innerHTML = items.map(e => {
+    const d = new Date(e.date + 'T12:00:00');
+    const when = `${FR_DAYS_SHORT[d.getDay()]} ${d.getDate()}${e.time ? ' · ' + e.time : ''}`;
+    const mine = e.author === currentPerson;
+    let by = `<b class="${e.author}">${personName(e.author)}</b>`;
+    if (e.invited) by += mine ? ` · ${personName(otherOf(e.author))} invité·e` : ' · t\'invite';
+    const cls = ['ev-item', e.author, mine ? 'mine' : '', e.date < todayStr ? 'past' : ''].join(' ');
+    return `<button class="${cls}" ${mine ? `onclick="openEventSheet(${e.id})"` : 'tabindex="-1"'}>
+      <span class="ev-when">${when}</span>
+      <span class="ev-body"><span class="ev-text">${escapeHtml(e.text)}</span><span class="ev-by">${by}</span></span>
+    </button>`;
+  }).join('');
+}
+
+function openEventSheet(id) {
+  if (!currentPerson) { showGate(); return; }
+  const e = id ? calEvents.find(x => x.id === id && x.author === currentPerson) : null;
+  editingEventId = e ? e.id : null;
+  // Par défaut : aujourd'hui si on regarde le mois en cours, sinon le 1er du mois affiché.
+  const now = new Date();
+  const defaultDate = (calYear === now.getFullYear() && calMonth === now.getMonth())
+    ? dateKey(now.getFullYear(), now.getMonth(), now.getDate())
+    : dateKey(calYear, calMonth, 1);
+  document.getElementById('evTitle').textContent = e ? 'Modifier' : 'Écrire quelque chose';
+  document.getElementById('evText').value = e ? e.text : '';
+  document.getElementById('evDate').value = e ? e.date : defaultDate;
+  document.getElementById('evTime').value = e && e.time ? e.time : '';
+  document.getElementById('evInvited').checked = e ? e.invited : false;
+  document.getElementById('evInviteLabel').textContent = 'Inviter ' + personName(otherOf(currentPerson));
+  document.getElementById('evDelete').style.display = e ? '' : 'none';
+  document.getElementById('evError').textContent = '';
+  document.getElementById('eventSheet').classList.add('show');
+  if (!e) setTimeout(() => document.getElementById('evText').focus(), 150);
+}
+
+function closeEventSheet() {
+  document.getElementById('eventSheet').classList.remove('show');
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  editingEventId = null;
+}
+
+async function postEvents(path, payload) {
+  const btn = document.getElementById('evSave');
+  btn.disabled = true;
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(res.status);
+    calEvents = await res.json();
+    closeEventSheet();
+    renderCalendarGrid();
+  } catch(e) {
+    document.getElementById('evError').textContent = 'Pas enregistré : vérifie la connexion et réessaie.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function saveEvent() {
+  const text = document.getElementById('evText').value.trim();
+  const date = document.getElementById('evDate').value;
+  const time = document.getElementById('evTime').value;
+  const err = document.getElementById('evError');
+  if (!text) { err.textContent = 'Écris quelque chose.'; return; }
+  if (!date) { err.textContent = 'Choisis un jour.'; return; }
+  postEvents('/api/events', {
+    person: currentPerson, id: editingEventId, text, date, time: time || null,
+    invited: document.getElementById('evInvited').checked,
+  });
+}
+
+function deleteEvent() {
+  if (editingEventId === null) return;
+  postEvents('/api/events/delete', { person: currentPerson, id: editingEventId });
 }
 
 function nightOk(status) { return status === 'free' || status === 'evening'; }
@@ -1603,7 +1716,7 @@ function refreshActiveView() {
   load();
   const activeBtn = document.querySelector('.nav-btn.active');
   const view = activeBtn ? activeBtn.dataset.view : 'journal';
-  if (view === 'calendar') loadAvailability().then(() => renderCalendarGrid());
+  if (view === 'calendar') loadCalendarData().then(() => renderCalendarGrid());
   if (view === 'notes') loadNotes();
   if (view === 'shopping') loadShopping();
 }
@@ -1619,6 +1732,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) refreshActiveView();
 initRiddleInput();
 updateRiddleButton();
 initCalendarGestures();
+document.getElementById('evText').addEventListener('keydown', e => { if (e.key === 'Enter') saveEvent(); });
 initShopping();
 load();
 loadAvailability();
