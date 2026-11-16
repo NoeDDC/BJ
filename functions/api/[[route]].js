@@ -3,6 +3,7 @@
 // (backend/handlers.py), plus les événements écrits du calendrier.
 import * as D from '../_lib/db.js';
 import { sendPush } from '../_lib/push.js';
+import * as A from '../_lib/auth.js';
 
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
   status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -36,22 +37,65 @@ async function readBody(request) {
   } catch { return {}; }
 }
 
+// ── connexion ──
+async function auth(ctx, sql, path, url) {
+  const { request } = ctx;
+  if (path === '/api/auth/me' && request.method === 'GET') {
+    const s = ctx.data.session;
+    return json({ person: s.person, mustChange: s.mustChange });
+  }
+  if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  const body = await readBody(request);
+  if (path === '/api/auth/login') {
+    const r = await A.checkPassword(sql, body.person, body.password);
+    if (r.blocked) return json({ error: 'Trop d\'essais : réessaie dans un quart d\'heure.' }, 429);
+    if (!r.ok) return json({ error: 'Mot de passe incorrect.' }, 401);
+    const token = await A.makeSession(ctx.env, body.person, r.row.version, r.row.must_change);
+    return new Response(JSON.stringify({ person: body.person, mustChange: r.row.must_change }), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Set-Cookie': A.sessionCookie(request, token) },
+    });
+  }
+  if (path === '/api/auth/logout') {
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { 'Content-Type': 'application/json', 'Set-Cookie': A.sessionCookie(request, null) },
+    });
+  }
+  if (path === '/api/auth/change') {
+    const s = ctx.data.session;
+    const pw = typeof body.password === 'string' ? body.password : '';
+    if (pw.length < A.MIN_LEN) return json({ error: `Au moins ${A.MIN_LEN} caractères.` }, 400);
+    // Le même que l'actuel (donc, au premier passage, le mot de passe par défaut) : refusé.
+    const [row] = await sql`SELECT hash, salt, iterations FROM passwords WHERE person = ${s.person}`;
+    if (row && (await A.hashPassword(pw, row.salt, row.iterations)) === row.hash) {
+      return json({ error: 'Choisis un mot de passe différent de l\'actuel.' }, 400);
+    }
+    const version = await A.setPassword(sql, s.person, pw);
+    const token = await A.makeSession(ctx.env, s.person, version, false);
+    return new Response(JSON.stringify({ person: s.person, mustChange: false }), {
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Set-Cookie': A.sessionCookie(request, token) },
+    });
+  }
+  return new Response('Not Found', { status: 404 });
+}
+
 export async function onRequest(ctx) {
   const { request } = ctx;
   const url = new URL(request.url);
   const path = url.pathname;
   const sql = D.db(ctx.env);
+  if (path.startsWith('/api/auth/')) return auth(ctx, sql, path, url);
+
+  // La personne est celle de la session (functions/_middleware.js), jamais
+  // celle que le téléphone annonce : Noé n'écrit pas au nom de Zoé et ne lit
+  // pas ses notes « à se dire ».
+  const me = ctx.data.session.person;
 
   if (request.method === 'GET') {
     switch (path) {
       case '/api/counters': return json(await D.getDashboard(sql));
       case '/api/availability': return json(await D.getAvailability(sql));
       case '/api/events': return json(await D.getEvents(sql));
-      case '/api/notes': {
-        const person = url.searchParams.get('person');
-        if (!D.PERSONS.includes(person)) return bad();
-        return json(await D.notesPayload(sql, person));
-      }
+      case '/api/notes': return json(await D.notesPayload(sql, me));
       case '/api/shopping': return json(await D.shoppingBoard(sql));
       case '/api/push/public-key': return json({ publicKey: ctx.env.VAPID_PUBLIC || null });
       case '/api/calendar-links': {
@@ -64,7 +108,8 @@ export async function onRequest(ctx) {
 
   if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
   const body = await readBody(request);
-  const person = body.person;
+  body.person = me;
+  const person = me;
 
   switch (path) {
     case '/api/counters': {

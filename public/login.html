@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#F8F3EC" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Bonne journée" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <title>Bonne journée</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cinzel:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root { --z: #8B3E2F; --z-bg: #F6E4DC; --n: #2B5F6B; --n-bg: #DDEEF1; --ink: #1C1814; --muted: #7A6E66; --paper: #F8F3EC; --rule: #D8CFBF; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--paper); color: var(--ink); min-height: 100%; }
+    body { font-family: 'Cormorant Garamond', serif; display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; padding: calc(1.5rem + env(safe-area-inset-top)) 1.25rem calc(1.5rem + env(safe-area-inset-bottom)); }
+    .card { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 1.3rem; }
+    .brand { font-family: 'Cinzel', serif; font-size: 1.05rem; letter-spacing: 0.22em; text-transform: uppercase; background: var(--ink); color: var(--paper); padding: 0.55rem 1.4rem; border-radius: 999px; }
+    .eyebrow { font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
+    h1 { font-family: 'Cinzel', serif; font-size: 1.25rem; letter-spacing: 0.06em; text-align: center; font-weight: 500; }
+    .who { width: 100%; display: flex; flex-direction: column; gap: 0.9rem; }
+    .who button { width: 100%; min-height: 96px; border-radius: 20px; border: 1.5px solid var(--rule); display: flex; flex-direction: column;
+                  align-items: center; justify-content: center; gap: 0.45rem; font-family: inherit; font-size: 1.15rem; color: var(--ink); cursor: pointer; }
+    .who .z { background: var(--z-bg); border-color: var(--z); }
+    .who .n { background: var(--n-bg); border-color: var(--n); }
+    .av { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 1.2rem; color: #fff; }
+    .av.z { background: var(--z); } .av.n { background: var(--n); }
+    form { width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+    label { font-style: italic; font-size: 0.85rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.3rem; }
+    input { width: 100%; border-radius: 999px; border: 1px solid var(--rule); background: rgba(255,255,255,0.7); padding: 0.75rem 1.1rem;
+            font-family: inherit; font-size: 1.05rem; color: var(--ink); outline: none; }
+    input:focus { border-color: var(--ink); }
+    .go { border-radius: 999px; border: none; background: var(--ink); color: var(--paper); padding: 0.8rem; font-family: inherit; font-size: 1.05rem; cursor: pointer; }
+    .go:disabled { opacity: 0.5; }
+    .back { background: none; border: none; color: var(--muted); font-family: inherit; font-size: 0.9rem; text-decoration: underline; cursor: pointer; }
+    .err { color: var(--z); font-style: italic; font-size: 0.9rem; text-align: center; }
+    .err:empty { display: none; }
+    .hint { font-style: italic; font-size: 0.85rem; color: var(--muted); text-align: center; line-height: 1.4; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">Bonne journée</div>
+
+    <!-- 1. Qui es-tu ? -->
+    <section id="etapeQui" class="card">
+      <div class="eyebrow">pour entrer</div>
+      <h1>Qui es-tu ?</h1>
+      <div class="who">
+        <button class="z" onclick="choisir('z')"><span class="av z">Z</span>Zoé</button>
+        <button class="n" onclick="choisir('n')"><span class="av n">N</span>Noé</button>
+      </div>
+    </section>
+
+    <!-- 2. Mot de passe -->
+    <section id="etapeMdp" class="card" hidden>
+      <div class="eyebrow">bonjour</div>
+      <h1 id="bonjour"></h1>
+      <form onsubmit="connecter(event)">
+        <label>Mot de passe<input type="password" id="mdp" autocomplete="current-password" required /></label>
+        <div class="err" id="errMdp"></div>
+        <button class="go" id="btnMdp">Entrer</button>
+      </form>
+      <button class="back" onclick="retour()">Ce n'est pas moi</button>
+    </section>
+
+    <!-- 3. Nouveau mot de passe (obligatoire la première fois) -->
+    <section id="etapeNouveau" class="card" hidden>
+      <div class="eyebrow">première connexion</div>
+      <h1>Choisis ton mot de passe</h1>
+      <p class="hint">Le mot de passe de départ ne sert qu'une fois. Choisis le tien, au moins 8 caractères.</p>
+      <form onsubmit="changer(event)">
+        <label>Nouveau mot de passe<input type="password" id="nouveau" autocomplete="new-password" minlength="8" required /></label>
+        <label>Encore une fois<input type="password" id="nouveau2" autocomplete="new-password" minlength="8" required /></label>
+        <div class="err" id="errNouveau"></div>
+        <button class="go" id="btnNouveau">Enregistrer</button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const NOMS = { z: 'Zoé', n: 'Noé' };
+    let qui = null;
+    const $ = id => document.getElementById(id);
+    function montrer(etape) {
+      for (const id of ['etapeQui', 'etapeMdp', 'etapeNouveau']) $(id).hidden = id !== etape;
+    }
+    function choisir(p) {
+      qui = p;
+      $('bonjour').textContent = NOMS[p];
+      $('errMdp').textContent = '';
+      $('mdp').value = '';
+      montrer('etapeMdp');
+      setTimeout(() => $('mdp').focus(), 50);
+    }
+    function retour() { qui = null; montrer('etapeQui'); }
+    function entrer(person) {
+      try { localStorage.setItem('bj_person', person); } catch (e) {}
+      location.replace('/');
+    }
+    async function envoyer(path, body) {
+      const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      let d = {};
+      try { d = await r.json(); } catch (e) {}
+      return { ok: r.ok, d };
+    }
+    async function connecter(e) {
+      e.preventDefault();
+      $('btnMdp').disabled = true;
+      try {
+        const { ok, d } = await envoyer('/api/auth/login', { person: qui, password: $('mdp').value });
+        if (!ok) { $('errMdp').textContent = d.error || 'Connexion impossible.'; return; }
+        if (d.mustChange) { montrer('etapeNouveau'); setTimeout(() => $('nouveau').focus(), 50); return; }
+        entrer(d.person);
+      } catch (err) {
+        $('errMdp').textContent = 'Pas de connexion : réessaie.';
+      } finally { $('btnMdp').disabled = false; }
+    }
+    async function changer(e) {
+      e.preventDefault();
+      const a = $('nouveau').value, b = $('nouveau2').value;
+      if (a !== b) { $('errNouveau').textContent = 'Les deux ne sont pas pareils.'; return; }
+      $('btnNouveau').disabled = true;
+      try {
+        const { ok, d } = await envoyer('/api/auth/change', { password: a });
+        if (!ok) { $('errNouveau').textContent = d.error || 'Pas enregistré : réessaie.'; return; }
+        entrer(d.person);
+      } catch (err) {
+        $('errNouveau').textContent = 'Pas de connexion : réessaie.';
+      } finally { $('btnNouveau').disabled = false; }
+    }
+    // Déjà connecté (ou connecté avec le mot de passe de départ) : on reprend où il faut.
+    fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      if (d.mustChange) { qui = d.person; montrer('etapeNouveau'); }
+      else entrer(d.person);
+    }).catch(() => {});
+  </script>
+</body>
+</html>

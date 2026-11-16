@@ -1,3 +1,15 @@
+/* ── Connexion (functions/_middleware.js) ──
+   Une session expirée ou retirée (mot de passe changé sur l'autre téléphone)
+   fait répondre 401 à l'API : retour à la page de connexion. */
+(function () {
+  const fetchOrigine = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const res = await fetchOrigine(...args);
+    if (res.status === 401 && String(args[0]).startsWith('/api/')) location.replace('/login');
+    return res;
+  };
+})();
+
 /* ── iOS installed-PWA viewport bug ──
    When the on-screen keyboard opens in a home-screen web app, WebKit shrinks
    the layout viewport (window.innerHeight drops by ~60px) and does not grow
@@ -985,7 +997,12 @@ function choosePerson(p) {
   if (pendingPushToggle) { pendingPushToggle = false; togglePush(); }
 }
 
-function switchPerson() { showGate(); }
+// La personne vient de la session : changer de personne, c'est se déconnecter.
+async function switchPerson() {
+  try { await fetch('/api/auth/logout', { method: 'POST' }); } catch(e) {}
+  try { localStorage.removeItem('bj_person'); } catch(e) {}
+  location.replace('/login');
+}
 
 async function loadAvailability() {
   try {
@@ -1033,7 +1050,7 @@ function renderCalYou() {
   const el = document.getElementById('calYou');
   if (!currentPerson) { el.innerHTML = ''; return; }
   const name = currentPerson === 'z' ? 'Zoé' : 'Noé';
-  el.innerHTML = `Connecté·e comme <b class="you-${currentPerson}">${name}</b> · <a onclick="switchPerson()">changer</a>`;
+  el.innerHTML = `Connecté·e comme <b class="you-${currentPerson}">${name}</b> · <a onclick="switchPerson()">se déconnecter</a>`;
 }
 
 function renderCalendarGrid(pulseKey) {
@@ -1737,6 +1754,10 @@ initShopping();
 load();
 loadAvailability();
 initPush();
+// La session dit qui est connecté : elle l'emporte sur ce que le téléphone a gardé.
+fetch('/api/auth/me').then(r => (r.ok ? r.json() : null)).then(d => {
+  if (d && d.person && d.person !== currentPerson) choosePerson(d.person);
+}).catch(() => {});
 
 /* L'app a pu être lancée — ou rechargée par une mise à jour du service
    worker — alors que le viewport était déjà rétréci : on corrige d'emblée,
