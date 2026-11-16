@@ -1,7 +1,7 @@
 """Branche Neon d'essai (copie de la base de production, jetable).
 
-    python3 outils/avec_env_render.py python3 outils/neon_branche_essai.py creer
-    python3 outils/avec_env_render.py python3 outils/neon_branche_essai.py supprimer
+    python3 outils/avec_env.py python3 outils/neon_branche_essai.py creer
+    python3 outils/avec_env.py python3 outils/neon_branche_essai.py supprimer
 
 `creer` remplace une éventuelle branche du même nom et écrit son adresse dans
 .dev.vars (ignoré par Git, droits 600), lu par `wrangler pages dev`. Rien n'est affiché.

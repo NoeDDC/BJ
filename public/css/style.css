@@ -673,6 +673,29 @@ footer {
 .ev-row { display: flex; gap: 0.6rem; }
 .ev-field { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; font-style: italic; font-size: 0.72rem; color: var(--muted); min-width: 0; }
 .ev-field .notes-input { width: 100%; min-width: 0; }
+/* Safari iOS donne aux champs date/heure une largeur propre qui déborde de
+   leur colonne (les deux pilules se chevauchaient) : on la retire. */
+.ev-field input[type="date"], .ev-field input[type="time"] {
+  -webkit-appearance: none; appearance: none; display: block; box-sizing: border-box;
+  max-width: 100%; min-height: 2.9rem; text-align: center;
+}
+.ev-field input::-webkit-date-and-time-value { text-align: center; }
+.ev-row > .ev-field { flex: 1 1 0; }
+
+/* Bouton « ＋ Écrire » : toujours visible sur le calendrier, au-dessus de la
+   barre du bas, sans avoir à descendre jusqu'à la liste. */
+.cal-fab {
+  position: absolute; right: 16px; bottom: 14px; z-index: 30;
+  display: none; align-items: center; gap: 0.3rem;
+  border: none; border-radius: 999px; background: var(--ink); color: var(--paper);
+  padding: 0.75rem 1.2rem; font-family: 'Cormorant Garamond', serif; font-size: 1.05rem;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+  -webkit-tap-highlight-color: transparent; transition: transform .12s;
+}
+.cal-fab:active { transform: scale(0.95); }
+.views-container.on-calendar .cal-fab { display: flex; }
+/* de la place sous le dernier élément pour que le bouton ne cache rien */
+#view-calendar { padding-bottom: 5rem; }
 .ev-invite { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; }
 .ev-invite input { width: 20px; height: 20px; accent-color: var(--ink); }
 .ev-error { color: var(--z); font-style: italic; font-size: 0.78rem; }

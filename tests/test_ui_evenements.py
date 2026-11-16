@@ -36,7 +36,7 @@ with sync_playwright() as p:
 
     z = page_de("z")
     avant = len(api("/api/events"))
-    z.click(".cal-write-btn")
+    z.click(".cal-fab")
     z.wait_for_selector("#eventSheet.show")
     assert z.inner_text("#evInviteLabel") == "Inviter Noé"
     z.fill("#evText", "Resto chez Léa")
@@ -81,7 +81,7 @@ with sync_playwright() as p:
     assert aujourdhui not in api("/api/availability")["z"]
 
     # sans texte : message, rien n'est enregistré
-    z.click(".cal-write-btn"); z.wait_for_selector("#eventSheet.show")
+    z.click(".cal-fab"); z.wait_for_selector("#eventSheet.show")
     z.click("#evSave")
     assert z.inner_text("#evError") == "Écris quelque chose."
     z.click("text=Annuler")

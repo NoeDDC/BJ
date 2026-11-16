@@ -1,6 +1,6 @@
 """Pose le mot de passe par défaut (à changer à la première connexion) pour Zoé et Noé.
 
-    printf %s 'le-mot-de-passe' | python3 outils/avec_env_render.py python3 outils/mot_de_passe_defaut.py
+    printf %s 'le-mot-de-passe' | python3 outils/avec_env.py python3 outils/mot_de_passe_defaut.py
     printf %s 'le-mot-de-passe' | DATABASE_URL=... python3 outils/mot_de_passe_defaut.py     (branche d'essai)
 
 Le mot de passe arrive par l'entrée standard, jamais en argument ni dans Git. Il n'est

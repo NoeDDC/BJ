@@ -1,7 +1,7 @@
 """Compare l'API Cloudflare (wrangler pages dev, 8788) à l'ancien serveur Python (3011),
 tous deux branchés sur la MÊME branche Neon d'essai, puis teste les événements.
 
-    python3 outils/avec_env_render.py python3 outils/neon_branche_essai.py creer
+    python3 outils/avec_env.py python3 outils/neon_branche_essai.py creer
     npx wrangler pages dev --port 8788      # et l'ancien : PORT=3011 python3 server.py (branche main)
     python3 tests/test_api.py               # sans l'ancien serveur : seulement les événements
 """

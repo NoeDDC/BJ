@@ -171,13 +171,12 @@
       <div class="cal-weekdays"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
       <div class="cal-grid" id="calGrid"></div>
 
-      <div class="cal-hint">Tape sur un jour : dispo. Appui long : acti le soir, mais dodo possible. ✎ Écrire : un programme, avec ou sans invitation.</div>
+      <div class="cal-hint">Tape sur un jour : dispo. Appui long : acti le soir, mais dodo possible. ＋ Écrire : un programme, avec ou sans invitation.</div>
       <div class="cal-you" id="calYou"></div>
 
       <div class="cal-events">
         <div class="cal-events-head">
           <span class="cal-events-title" id="calEventsTitle">ce mois-ci</span>
-          <button class="cal-write-btn" onclick="openEventSheet()">✎ Écrire</button>
         </div>
         <div class="cal-events-list" id="calEventsList"></div>
       </div>
@@ -225,6 +224,7 @@
       </div>
     </div>
 
+    <button class="cal-fab" id="calFab" onclick="openEventSheet()" aria-label="Écrire dans le calendrier">＋ Écrire</button>
   </div>
 
   <nav class="bottom-nav">
